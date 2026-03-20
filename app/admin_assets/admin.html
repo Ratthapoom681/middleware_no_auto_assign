@@ -48,6 +48,22 @@
         <p>Create DefectDojo users so they are available in your admin inventory and team setup.</p>
       </a>
     </div>
+
+    <section class="panel log-panel">
+      <div class="panel-head">
+        <div>
+          <p class="section-label">Live Activity</p>
+          <h2 class="panel-title">Errors and DefectDojo Sends</h2>
+          <p class="panel-lede">This stream shows app errors and finding send activity from the running service. It refreshes automatically.</p>
+        </div>
+        <div class="hero-actions">
+          <button class="ghost" id="refreshLogsBtn" type="button">Refresh Logs</button>
+        </div>
+      </div>
+      <div class="status" id="logStatus"></div>
+      <div class="log-list" id="logList"></div>
+    </section>
   </div>
+  <script src="/admin/assets/admin_home.js"></script>
 </body>
 </html>

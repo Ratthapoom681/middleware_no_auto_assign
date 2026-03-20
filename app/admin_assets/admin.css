@@ -758,6 +758,89 @@ button:focus-visible {
   margin-bottom: 10px;
 }
 
+.log-panel {
+  margin-top: 22px;
+}
+
+.log-list {
+  display: grid;
+  gap: 12px;
+}
+
+.log-empty {
+  padding: 16px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 16px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.log-entry {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: var(--shadow-sm);
+}
+
+.log-entry-error {
+  border-color: rgba(180, 35, 24, 0.18);
+  background: rgba(255, 242, 240, 0.92);
+}
+
+.log-entry-defectdojo {
+  border-color: rgba(15, 118, 110, 0.16);
+}
+
+.log-entry-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-badge,
+.log-level {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.log-badge {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+}
+
+.log-entry-error .log-badge {
+  background: rgba(180, 35, 24, 0.12);
+  color: var(--danger);
+}
+
+.log-level {
+  background: rgba(71, 84, 103, 0.08);
+  color: var(--muted-strong);
+}
+
+.log-time {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.log-message {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 @keyframes rise-in {
   from {
     opacity: 0;

@@ -17,8 +17,10 @@ from .wazuh_parser import (
 from .routing import determine_owner_group
 from .cve_lookup import nvd_cwe_lookup
 from .defectdojo_client import DefectDojoClient
+from .log_stream import install_log_stream_handler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+install_log_stream_handler()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Wazuh to DefectDojo Integrator")
@@ -78,15 +80,42 @@ def get_test_category(tags: list[str]) -> str:
     return config.categories.default_test
 
 
+def _normalize_endpoint_value(value: object) -> str | None:
+    if value is None:
+        return None
+
+    normalized = str(value).strip()
+    if not normalized:
+        return None
+
+    if normalized.lower() in {"unknown", "n/a", "none", "-"}:
+        return None
+
+    return normalized
+
+
 def get_endpoint_host(alert: WazuhAlert) -> str | None:
-    if alert.agent.ip:
-        return alert.agent.ip
+    candidates: list[object] = []
 
-    if alert.agent.name:
-        return alert.agent.name
+    if alert.data:
+        candidates.extend([
+            alert.data.get("dstip"),
+            alert.data.get("dst_ip"),
+            alert.data.get("hostname"),
+            alert.data.get("host"),
+        ])
 
-    if alert.manager and alert.manager.get("name"):
-        return str(alert.manager["name"])
+    candidates.extend([
+        alert.location,
+        alert.agent.ip,
+        alert.agent.name,
+        alert.manager.get("name") if alert.manager else None,
+    ])
+
+    for candidate in candidates:
+        endpoint_host = _normalize_endpoint_value(candidate)
+        if endpoint_host:
+            return endpoint_host
 
     return None
 

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from .config import AppConfig, save_config
+from .log_stream import get_log_entries
 
 
 router = APIRouter()
@@ -114,3 +115,8 @@ async def admin_create_dojo_object(object_type: str, request: Request):
         return JSONResponse(create_dojo_object(object_type, payload))
     except Exception as exc:
         return JSONResponse({"detail": str(exc)}, status_code=400)
+
+
+@router.get("/admin/api/logs")
+async def admin_logs():
+    return JSONResponse({"entries": get_log_entries()})
