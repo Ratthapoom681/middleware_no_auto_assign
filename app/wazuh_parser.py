@@ -3,6 +3,15 @@ import json
 from .matching import build_alert_match_tokens, rule_matches
 from .models import WazuhAlert
 
+def get_rule_description(alert: WazuhAlert) -> str:
+    if alert.rule.description:
+        return alert.rule.description
+
+    if alert.rule.groups:
+        return f"Wazuh event for groups: {', '.join(alert.rule.groups)}"
+
+    return f"Wazuh rule {alert.rule.id}"
+
 def map_severity(level: int) -> str:
     if level <= 4: return "Low"
     if level <= 7: return "Medium"
@@ -67,8 +76,9 @@ def extract_cwe(alert: WazuhAlert) -> int | None:
     return None
 
 def generate_markdown_description(alert: WazuhAlert) -> str:
+    rule_description = get_rule_description(alert)
     desc = f"### Wazuh Alert Summary\n\n"
-    desc += f"**Description:** {alert.rule.description}\n"
+    desc += f"**Description:** {rule_description}\n"
     desc += f"**Rule ID:** {alert.rule.id} (Level {alert.rule.level})\n"
     desc += f"**Agent:** {alert.agent.name} ({alert.agent.id})\n"
     desc += f"**Location:** {alert.location}\n\n"

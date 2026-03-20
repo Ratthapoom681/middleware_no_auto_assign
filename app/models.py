@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 class WazuhRule(BaseModel, extra=Extra.ignore):
     id: str
     level: int
-    description: str
+    description: Optional[str] = None
     groups: List[str] = []
 
 class WazuhAgent(BaseModel, extra=Extra.ignore):

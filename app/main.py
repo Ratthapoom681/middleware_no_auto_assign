@@ -10,6 +10,7 @@ from .wazuh_parser import (
     generate_impact,
     generate_markdown_description,
     generate_mitigation,
+    get_rule_description,
     map_severity,
 )
 from .routing import determine_owner_group
@@ -127,7 +128,7 @@ def process_alert(raw_payload: dict):
 
         finding_data = {
             "test": test_id,
-            "title": f"[Wazuh] {alert.rule.description} on {alert.agent.name}",
+            "title": f"[Wazuh] {get_rule_description(alert)} on {alert.agent.name}",
             "description": generate_markdown_description(alert),
             "impact": generate_impact(alert),
             "mitigation": generate_mitigation(alert),
