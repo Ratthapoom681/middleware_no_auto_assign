@@ -9,10 +9,10 @@
 <body>
   <div class="shell">
     <div class="hero">
-      <div>
+      <div class="hero-copy">
         <p class="eyebrow">Admin Console</p>
         <h1>Routing and Teams</h1>
-        <p class="lede">Control ownership, team members, and auto-tagging.</p>
+        <p class="lede">Control ownership, team structure, and alert tagging in one place without digging through YAML first.</p>
       </div>
       <div class="hero-actions">
         <button class="ghost" id="reloadBtn">Reload</button>
@@ -31,13 +31,19 @@
     <div class="status" id="status"></div>
 
     <section class="panel">
-      <h2>Routing and Teams</h2>
+      <div class="panel-head">
+        <div>
+          <p class="section-label">Ownership Controls</p>
+          <h2 class="panel-title">Routing and Teams</h2>
+          <p class="panel-lede">Define default ownership, team labels, and the matching rules that steer findings into the right lane.</p>
+        </div>
+      </div>
       <div class="editor-stack">
         <div class="editor-group">
           <div class="editor-head">
             <div>
               <h4>Teams</h4>
-              <p>Set the team name, assigned users, and fallback user.</p>
+              <p>Set the team name and keep any optional user references grouped with that team.</p>
             </div>
             <button class="ghost" type="button" id="addTeamBtn">Add Team</button>
           </div>

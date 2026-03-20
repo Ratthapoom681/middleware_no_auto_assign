@@ -9,10 +9,10 @@
 <body>
   <div class="shell">
     <div class="hero">
-      <div>
+      <div class="hero-copy">
         <p class="eyebrow">Admin Console</p>
         <h1>Destination Path</h1>
-        <p class="lede">Choose where Wazuh alerts land in DefectDojo.</p>
+        <p class="lede">Choose where Wazuh alerts land in DefectDojo and keep your alert categories pointed at the right test path.</p>
       </div>
       <div class="hero-actions">
         <button class="ghost" id="reloadBtn">Reload</button>
@@ -32,7 +32,13 @@
 
     <div class="layout">
       <section class="panel">
-        <h2>Destination Path</h2>
+        <div class="panel-head">
+          <div>
+            <p class="section-label">Primary Settings</p>
+            <h2 class="panel-title">Destination Path</h2>
+            <p class="panel-lede">Set the DefectDojo path and category mapping that new alerts should use.</p>
+          </div>
+        </div>
         <div class="form-grid">
           <div class="field">
             <label for="productTypeSelect">Product Type</label>
@@ -76,7 +82,10 @@
           </div>
         </div>
 
-        <h3>Category to Test Path</h3>
+        <div class="split-head">
+          <p class="section-label">Category Mapping</p>
+          <h3>Category to Test Path</h3>
+        </div>
         <div class="category-grid">
           <div class="field">
             <label for="threatHuntingTest">Threat Hunting Test Category</label>
@@ -94,7 +103,13 @@
       </section>
 
       <section class="panel">
-        <h2>DefectDojo Inventory</h2>
+        <div class="panel-head">
+          <div>
+            <p class="section-label">Reference Data</p>
+            <h2 class="panel-title">DefectDojo Inventory</h2>
+            <p class="panel-lede">Live options from DefectDojo to help confirm the path you are saving.</p>
+          </div>
+        </div>
         <div class="inventory" id="inventory"></div>
       </section>
     </div>

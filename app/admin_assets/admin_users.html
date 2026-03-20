@@ -9,10 +9,10 @@
 <body>
   <div class="shell">
     <div class="hero">
-      <div>
+      <div class="hero-copy">
         <p class="eyebrow">Admin Console</p>
         <h1>Users</h1>
-        <p class="lede">Create DefectDojo users for routing, teams, and reviewer assignment.</p>
+        <p class="lede">Create DefectDojo users and keep a quick view of which accounts are already available to the admin app.</p>
       </div>
       <div class="hero-actions">
         <button class="ghost" id="reloadBtn">Reload</button>
@@ -31,7 +31,13 @@
 
     <div class="layout">
       <section class="panel">
-        <h2>Create DefectDojo User</h2>
+        <div class="panel-head">
+          <div>
+            <p class="section-label">Create Account</p>
+            <h2 class="panel-title">Create DefectDojo User</h2>
+            <p class="panel-lede">Add a user through the same API connection the admin panel already uses.</p>
+          </div>
+        </div>
         <form class="create-card" id="userForm">
           <div class="create-fields">
             <label class="field">
@@ -67,7 +73,13 @@
       </section>
 
       <section class="panel">
-        <h2>Existing Users</h2>
+        <div class="panel-head">
+          <div>
+            <p class="section-label">Live Directory</p>
+            <h2 class="panel-title">Existing Users</h2>
+            <p class="panel-lede">A quick snapshot of the usernames already visible from DefectDojo.</p>
+          </div>
+        </div>
         <div class="inventory" id="inventory"></div>
       </section>
     </div>
