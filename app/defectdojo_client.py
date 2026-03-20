@@ -313,19 +313,34 @@ class DefectDojoClient:
             payload["endpoints"] = [endpoint_id]
 
         logger.info("Creating new DefectDojo finding for dedup key %s", dedup_key)
+        deferred_endpoint_attach = False
         try:
             finding_id = self._request("POST", "findings/", json=payload)["id"]
-        except Exception:
+        except Exception as exc:
             if "endpoints" not in payload:
                 raise
             logger.warning(
-                "Creating finding with endpoints failed for dedup key %s. Retrying without endpoint association.",
+                "Creating finding with endpoints failed for dedup key %s: %s. Retrying without endpoint association first.",
                 dedup_key,
+                exc,
             )
             payload.pop("endpoints", None)
             finding_id = self._request("POST", "findings/", json=payload)["id"]
+            deferred_endpoint_attach = endpoint_id is not None
         should_add_note = True
         action = "created"
+
+        if deferred_endpoint_attach and endpoint_id is not None:
+            try:
+                self._request("PATCH", f"findings/{finding_id}/", json={"endpoints": [endpoint_id]})
+                logger.info("Attached endpoint %s to finding %s after create retry", endpoint_id, finding_id)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to attach endpoint %s to finding %s after create retry: %s",
+                    endpoint_id,
+                    finding_id,
+                    exc,
+                )
             
         # Add a note regarding assignment using the finding-scoped endpoint.
         if should_add_note:
