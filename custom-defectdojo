@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""
+Wazuh custom integration script that forwards alert JSON to the
+Wazuh-to-DefectDojo webhook service.
+
+Designed to be copied to:
+  /var/ossec/integrations/custom-defectdojo
+
+Expected usage on the Wazuh manager side:
+  - Wazuh invokes the script with an alert file path argument.
+  - The webhook URL is provided either as:
+      1. an explicit command-line argument, or
+      2. the WAZUH_DEFECTDOJO_WEBHOOK_URL environment variable.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+
+DEFAULT_TIMEOUT_SECONDS = 10
+DEFAULT_WEBHOOK_URL = "http://127.0.0.1:8000/webhook"
+
+
+def eprint(message: str) -> None:
+    print(message, file=sys.stderr, flush=True)
+
+
+def extract_inputs(argv: list[str]) -> tuple[Path | None, str]:
+    alert_path: Path | None = None
+    webhook_url = os.getenv("WAZUH_DEFECTDOJO_WEBHOOK_URL", DEFAULT_WEBHOOK_URL)
+
+    for raw_arg in argv[1:]:
+        candidate = Path(raw_arg)
+        if alert_path is None and candidate.is_file():
+            alert_path = candidate
+            continue
+
+        if webhook_url is None and raw_arg.startswith(("http://", "https://")):
+            webhook_url = raw_arg
+
+    return alert_path, webhook_url
+
+
+def load_alert(alert_path: Path | None) -> bytes:
+    if alert_path is not None:
+        return alert_path.read_bytes()
+
+    # Fallback for manual testing.
+    payload = sys.stdin.buffer.read()
+    if payload:
+        return payload
+
+    raise ValueError(
+        "No alert payload found. Pass a Wazuh alert file path or pipe JSON to stdin."
+    )
+
+
+def validate_json(payload: bytes) -> bytes:
+    json.loads(payload.decode("utf-8"))
+    return payload
+
+
+def post_alert(webhook_url: str, payload: bytes) -> None:
+    request = urllib.request.Request(
+        webhook_url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=DEFAULT_TIMEOUT_SECONDS) as response:
+        body = response.read().decode("utf-8", errors="replace")
+        eprint(f"custom-defectdojo: delivered alert to {webhook_url} ({response.status})")
+        if body:
+            eprint(f"custom-defectdojo: response body: {body}")
+
+
+def main() -> int:
+    alert_path, webhook_url = extract_inputs(sys.argv)
+
+    try:
+        payload = validate_json(load_alert(alert_path))
+    except FileNotFoundError as exc:
+        eprint(f"custom-defectdojo: alert file not found: {exc}")
+        return 1
+    except json.JSONDecodeError as exc:
+        eprint(f"custom-defectdojo: invalid JSON payload: {exc}")
+        return 1
+    except ValueError as exc:
+        eprint(f"custom-defectdojo: {exc}")
+        return 1
+
+    try:
+        post_alert(webhook_url, payload)
+        return 0
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace")
+        eprint(
+            f"custom-defectdojo: webhook returned HTTP {exc.code} for {webhook_url}: "
+            f"{error_body}"
+        )
+        return 1
+    except urllib.error.URLError as exc:
+        eprint(f"custom-defectdojo: failed to reach {webhook_url}: {exc}")
+        return 1
+    except Exception as exc:
+        eprint(f"custom-defectdojo: unexpected error: {exc}")
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

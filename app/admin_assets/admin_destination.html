@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Destination Path</title>
+  <link rel="stylesheet" href="/admin/assets/admin.css" />
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">Admin Console</p>
+        <h1>Destination Path</h1>
+        <p class="lede">Choose where Wazuh alerts land in DefectDojo.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="ghost" id="reloadBtn">Reload</button>
+        <button class="primary" id="saveBtn">Save Config</button>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <a class="nav-link" href="/admin">Home</a>
+      <a class="nav-link active" href="/admin/destination">Destination Path</a>
+      <a class="nav-link" href="/admin/routing">Routing and Teams</a>
+      <a class="nav-link" href="/admin/create">Create Path</a>
+      <a class="nav-link" href="/admin/users">Users</a>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>Destination Path</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="productTypeSelect">Product Type</label>
+            <select id="productTypeSelect"></select>
+          </div>
+          <div class="field">
+            <label for="productTypeDescription">Product Type Description</label>
+            <input id="productTypeDescription" />
+          </div>
+          <div class="field">
+            <label for="productSelect">Product</label>
+            <select id="productSelect"></select>
+          </div>
+          <div class="field">
+            <label for="productDescription">Product Description</label>
+            <input id="productDescription" />
+          </div>
+          <div class="field">
+            <label for="engagementSelect">Engagement</label>
+            <select id="engagementSelect"></select>
+          </div>
+          <div class="field">
+            <label for="engagementStatus">Engagement Status</label>
+            <input id="engagementStatus" />
+          </div>
+          <div class="field">
+            <label for="engagementStart">Engagement Start</label>
+            <input id="engagementStart" />
+          </div>
+          <div class="field">
+            <label for="engagementEnd">Engagement End</label>
+            <input id="engagementEnd" />
+          </div>
+          <div class="field">
+            <label for="testTitlePrefix">Test Title Prefix</label>
+            <input id="testTitlePrefix" />
+          </div>
+          <div class="field">
+            <label for="testTypeId">Test Type ID</label>
+            <input id="testTypeId" type="number" />
+          </div>
+        </div>
+
+        <h3>Category to Test Path</h3>
+        <div class="category-grid">
+          <div class="field">
+            <label for="threatHuntingTest">Threat Hunting Test Category</label>
+            <input id="threatHuntingTest" />
+          </div>
+          <div class="field">
+            <label for="vulnerabilityTest">Vulnerability Detector Test Category</label>
+            <input id="vulnerabilityTest" />
+          </div>
+          <div class="field full">
+            <label for="defaultTest">Default Test Category</label>
+            <input id="defaultTest" />
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>DefectDojo Inventory</h2>
+        <div class="inventory" id="inventory"></div>
+      </section>
+    </div>
+  </div>
+  <script src="/admin/assets/admin_destination.js"></script>
+</body>
+</html>

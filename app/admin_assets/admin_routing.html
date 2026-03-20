@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Routing and Teams</title>
+  <link rel="stylesheet" href="/admin/assets/admin.css" />
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">Admin Console</p>
+        <h1>Routing and Teams</h1>
+        <p class="lede">Control ownership, team members, and auto-tagging.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="ghost" id="reloadBtn">Reload</button>
+        <button class="primary" id="saveBtn">Save Config</button>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <a class="nav-link" href="/admin">Home</a>
+      <a class="nav-link" href="/admin/destination">Destination Path</a>
+      <a class="nav-link active" href="/admin/routing">Routing and Teams</a>
+      <a class="nav-link" href="/admin/create">Create Path</a>
+      <a class="nav-link" href="/admin/users">Users</a>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <section class="panel">
+      <h2>Routing and Teams</h2>
+      <div class="editor-stack">
+        <div class="editor-group">
+          <div class="editor-head">
+            <div>
+              <h4>Teams</h4>
+              <p>Set the team name, assigned users, and fallback user.</p>
+            </div>
+            <button class="ghost" type="button" id="addTeamBtn">Add Team</button>
+          </div>
+          <div class="field">
+            <label for="defaultOwnerGroup">Default Owner Group</label>
+            <select id="defaultOwnerGroup"></select>
+          </div>
+          <div class="editor-list" id="teamsEditor"></div>
+        </div>
+
+        <div class="editor-group">
+          <div class="editor-head">
+            <div>
+              <h4>Routing Rules</h4>
+              <p>Map Wazuh rule groups to the team that should own the finding.</p>
+            </div>
+            <button class="ghost" type="button" id="addRoutingRuleBtn">Add Rule</button>
+          </div>
+          <div class="editor-list" id="routingRulesEditor"></div>
+        </div>
+
+        <div class="editor-group">
+          <div class="editor-head">
+            <div>
+              <h4>Tag Rules</h4>
+              <p>Apply extra tags when alerts match these Wazuh rule groups.</p>
+            </div>
+            <button class="ghost" type="button" id="addTagRuleBtn">Add Tag Rule</button>
+          </div>
+          <div class="editor-list" id="tagRulesEditor"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script src="/admin/assets/admin_routing.js"></script>
+</body>
+</html>

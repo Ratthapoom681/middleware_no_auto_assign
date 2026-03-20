@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Create Path</title>
+  <link rel="stylesheet" href="/admin/assets/admin.css" />
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">Admin Console</p>
+        <h1>Create Path</h1>
+        <p class="lede">Create a new Product Type, Product, Engagement, and Test in one flow.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="ghost" id="reloadBtn">Reload</button>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <a class="nav-link" href="/admin">Home</a>
+      <a class="nav-link" href="/admin/destination">Destination Path</a>
+      <a class="nav-link" href="/admin/routing">Routing and Teams</a>
+      <a class="nav-link active" href="/admin/create">Create Path</a>
+      <a class="nav-link" href="/admin/users">Users</a>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <section class="panel">
+      <h2>Create DefectDojo Path</h2>
+      <div class="wizard-steps" id="wizardSteps">
+        <span class="wizard-step active">1. Product Type</span>
+        <span class="wizard-step">2. Product</span>
+        <span class="wizard-step">3. Engagement</span>
+        <span class="wizard-step">4. Test</span>
+      </div>
+      <form class="create-card" id="wizardForm">
+        <h3 id="wizardTitle">Step 1: Product Type</h3>
+        <div class="create-fields" id="wizardFields"></div>
+        <div class="wizard-actions">
+          <button class="ghost" type="button" id="wizardBack">Back</button>
+          <button class="ghost" type="button" id="wizardNext">Next</button>
+          <button class="primary" type="submit" id="wizardFinish">Create Path</button>
+        </div>
+      </form>
+    </section>
+  </div>
+  <script src="/admin/assets/admin_create.js"></script>
+</body>
+</html>

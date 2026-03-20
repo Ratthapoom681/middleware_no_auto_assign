@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  wazuh-dojo-no-auto-assign:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+      - ./config.yaml:/app/config.yaml
+    env_file:
+      - .env
+    environment:
+      - ASSIGNMENT_DB_PATH=/data/assignments.sqlite

@@ -1,0 +1,64 @@
+defectdojo:
+  product_type:
+    name: "Wazuh"
+    description: "Wazuh Alerts"
+  product:
+    name: "Wazuh Endpoint Security"
+    description: "Alerts"
+  engagement:
+    name: "Continuous Monitoring"
+    status: "In Progress"
+    target_start: "2020-01-01"
+    target_end: "2099-12-31"
+  test:
+    title_prefix: "Wazuh Alerts"
+    test_type_id: 1
+    target_start: "2020-01-01"
+    target_end: "2099-12-31"
+
+categories:
+  tag_to_test:
+    threat-hunting: "Threat Hunting"
+    vulnerability-detector: "Vulnerability Detector"
+  default_test: "General Monitoring"
+
+teams:
+  SecOps:
+    users:
+      - admin
+      - Test1
+    fallback_user: admin
+  SOC-Linux:
+    users:
+      - dan
+      - emma
+      - Test1
+    fallback_user: admin
+  AppSec:
+    users:
+      - frank
+      - grace
+      - Test1
+    fallback_user: admin
+  SOC-Windows:
+    users:
+      - WindowsTest1
+      - WindowsTest2
+      - WindowsTest3
+    fallback_user: admin
+
+routing_rules:
+  - match_rule_groups: ["windows"]
+    owner_group: "SOC-Windows"
+  - match_rule_groups: ["linux"]
+    owner_group: "SOC-Linux"
+  - match_rule_groups: ["web", "apache", "nginx"]
+    owner_group: "AppSec"
+
+tag_rules:
+  - match_rule_groups: ["authentication_failed", "invalid_login", "sshd", "pam", "windows", "wef", "sysmon", "eventchannel"]
+    tags: ["threat-hunting"]
+  - match_rule_groups: ["vulnerability", "vuln", "syscollector"]
+    tags: ["vulnerability-detector"]
+
+default_owner_group: "SecOps"

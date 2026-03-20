@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Users</title>
+  <link rel="stylesheet" href="/admin/assets/admin.css" />
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">Admin Console</p>
+        <h1>Users</h1>
+        <p class="lede">Create DefectDojo users for routing, teams, and reviewer assignment.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="ghost" id="reloadBtn">Reload</button>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <a class="nav-link" href="/admin">Home</a>
+      <a class="nav-link" href="/admin/destination">Destination Path</a>
+      <a class="nav-link" href="/admin/routing">Routing and Teams</a>
+      <a class="nav-link" href="/admin/create">Create Path</a>
+      <a class="nav-link active" href="/admin/users">Users</a>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>Create DefectDojo User</h2>
+        <form class="create-card" id="userForm">
+          <div class="create-fields">
+            <label class="field">
+              <span>Username</span>
+              <input id="username" name="username" type="text" placeholder="WindowsTest1" required />
+            </label>
+            <label class="field">
+              <span>Email</span>
+              <input id="email" name="email" type="email" placeholder="windows@example.com" required />
+            </label>
+            <label class="field">
+              <span>First Name</span>
+              <input id="firstName" name="first_name" type="text" placeholder="Windows" />
+            </label>
+            <label class="field">
+              <span>Last Name</span>
+              <input id="lastName" name="last_name" type="text" placeholder="Tester" />
+            </label>
+            <label class="field">
+              <span>Password</span>
+              <input id="password" name="password" type="password" placeholder="Temporary password" required />
+            </label>
+            <label class="field">
+              <span>Confirm Password</span>
+              <input id="confirmPassword" name="confirm_password" type="password" placeholder="Repeat password" required />
+            </label>
+          </div>
+          <div class="wizard-actions">
+            <span class="helper">This uses the same DefectDojo API your admin app already uses.</span>
+            <button class="primary" type="submit">Create User</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Existing Users</h2>
+        <div class="inventory" id="inventory"></div>
+      </section>
+    </div>
+  </div>
+  <script src="/admin/assets/admin_users.js"></script>
+</body>
+</html>
