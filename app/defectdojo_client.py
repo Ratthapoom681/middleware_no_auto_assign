@@ -374,7 +374,6 @@ class DefectDojoClient:
             payload["endpoints"] = [endpoint_id]
 
         logger.info("Creating new DefectDojo finding for dedup key %s", dedup_key)
-        deferred_endpoint_attach = False
         try:
             finding_id = self._request("POST", "findings/", json=payload)["id"]
         except Exception as exc:
@@ -387,11 +386,10 @@ class DefectDojoClient:
             )
             payload.pop("endpoints", None)
             finding_id = self._request("POST", "findings/", json=payload)["id"]
-            deferred_endpoint_attach = endpoint_id is not None
         should_add_note = True
         action = "created"
 
-        if deferred_endpoint_attach and endpoint_id is not None:
+        if endpoint_id is not None:
             self.attach_endpoint_to_finding(finding_id, endpoint_id)
             
         # Add a note regarding assignment using the finding-scoped endpoint.
