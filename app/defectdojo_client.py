@@ -280,17 +280,6 @@ class DefectDojoClient:
             if value.startswith("src_ip:") or value.startswith("observed_ip:") or value.startswith("dst_ip:")
         }
 
-    def _extract_reviewer_ids(self, finding: Dict[str, Any]) -> list[int]:
-        reviewer_ids = self._extract_related_ids(finding.get("reviewers", []))
-
-        reviewer = finding.get("reviewer")
-        if isinstance(reviewer, int):
-            reviewer_ids.append(reviewer)
-        elif isinstance(reviewer, dict) and isinstance(reviewer.get("id"), int):
-            reviewer_ids.append(reviewer["id"])
-
-        return sorted(set(reviewer_ids))
-
     def push_finding(
         self,
         finding_data: dict,
@@ -303,50 +292,33 @@ class DefectDojoClient:
         if existing_finding is None:
             existing_finding = self.find_existing_finding(finding_data, endpoint_id=endpoint_id)
 
-        payload = dict(finding_data)
-        if existing_finding:
-            existing_tags = self._extract_tag_names(existing_finding.get("tags", []))
-            payload["tags"] = sorted(set(existing_tags + payload.get("tags", [])))
-
-        if endpoint_id:
-            endpoint_ids = self._extract_related_ids(existing_finding.get("endpoints", [])) if existing_finding else []
-            endpoint_ids.append(endpoint_id)
-            payload["endpoints"] = sorted(set(endpoint_ids))
-
         if existing_finding:
             finding_id = existing_finding["id"]
-            logger.info("Updating existing DefectDojo finding for dedup key %s", dedup_key)
-            existing_reviewer_ids = self._extract_reviewer_ids(existing_finding)
-            if existing_reviewer_ids:
-                payload["reviewers"] = [existing_reviewer_ids[0]]
-            try:
-                self._request("PATCH", f"findings/{finding_id}/", json=payload)
-            except Exception:
-                if "endpoints" not in payload:
-                    raise
-                logger.warning(
-                    "Updating finding %s with endpoints failed. Retrying without endpoint association.",
-                    finding_id,
-                )
-                payload.pop("endpoints", None)
-                self._request("PATCH", f"findings/{finding_id}/", json=payload)
-            should_add_note = False
-            action = "deduplicated"
-        else:
-            logger.info("Creating new DefectDojo finding for dedup key %s", dedup_key)
-            try:
-                finding_id = self._request("POST", "findings/", json=payload)["id"]
-            except Exception:
-                if "endpoints" not in payload:
-                    raise
-                logger.warning(
-                    "Creating finding with endpoints failed for dedup key %s. Retrying without endpoint association.",
-                    dedup_key,
-                )
-                payload.pop("endpoints", None)
-                finding_id = self._request("POST", "findings/", json=payload)["id"]
-            should_add_note = True
-            action = "created"
+            logger.info(
+                "Skipping create for dedup key %s because DefectDojo finding %s already exists",
+                dedup_key,
+                finding_id,
+            )
+            return {"finding_id": finding_id, "action": "skipped_duplicate"}
+
+        payload = dict(finding_data)
+        if endpoint_id:
+            payload["endpoints"] = [endpoint_id]
+
+        logger.info("Creating new DefectDojo finding for dedup key %s", dedup_key)
+        try:
+            finding_id = self._request("POST", "findings/", json=payload)["id"]
+        except Exception:
+            if "endpoints" not in payload:
+                raise
+            logger.warning(
+                "Creating finding with endpoints failed for dedup key %s. Retrying without endpoint association.",
+                dedup_key,
+            )
+            payload.pop("endpoints", None)
+            finding_id = self._request("POST", "findings/", json=payload)["id"]
+        should_add_note = True
+        action = "created"
             
         # Add a note regarding assignment using the finding-scoped endpoint.
         if should_add_note:
