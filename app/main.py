@@ -13,6 +13,7 @@ from .wazuh_parser import (
     map_severity,
 )
 from .routing import determine_owner_group
+from .assignment import init_db, get_assigned_user, get_next_user, remember_assignment
 from .defectdojo_client import DefectDojoClient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -89,7 +90,8 @@ def get_endpoint_host(alert: WazuhAlert) -> str | None:
 
 @app.on_event("startup")
 def startup_event():
-    logger.info("Service started. Auto-assignment is disabled in this variant.")
+    init_db()
+    logger.info("Service started. Database initialized.")
 
 def process_alert(raw_payload: dict):
     # 1. Parse Alert
@@ -99,90 +101,113 @@ def process_alert(raw_payload: dict):
         logger.error(f"Failed to parse alert: {e}")
         return
 
-    try:
-        # 2. Routing
-        owner_group = determine_owner_group(alert, config)
-        group_config = config.teams.get(owner_group)
-        tags = build_tags(alert, owner_group, assignment_error=False)
-        test_category = get_test_category(tags)
+    # 2. Routing
+    owner_group = determine_owner_group(alert, config)
+    group_config = config.teams.get(owner_group)
+    tags = build_tags(alert, owner_group, assignment_error=False)
+    test_category = get_test_category(tags)
+    
+    # 3. Prepare DefectDojo test context and determine active users
+    context = dd_client.ensure_context(test_category)
+    test_id = context["test_id"]
+    product_id = context["product_id"]
+    dedup_key = generate_dedup_key(alert)
+    existing_finding = dd_client.get_finding_by_dedup(dedup_key)
 
-        # 3. Prepare DefectDojo test context
-        context = dd_client.ensure_context(test_category)
-        test_id = context["test_id"]
-        product_id = context["product_id"]
-        dedup_key = generate_dedup_key(alert)
-        existing_finding = dd_client.get_finding_by_dedup(dedup_key)
-
-        if group_config is None:
-            logger.warning(
-                "Owner group '%s' is not defined in config.yaml teams. Falling back to unassigned finding.",
-                owner_group,
-            )
-            assignment_error = True
-        else:
-            assignment_error = False
-
-        # 4. Prepare Finding Payload
-        tags = build_tags(alert, owner_group, assignment_error)
-
-        finding_data = {
-            "test": test_id,
-            "title": f"[Wazuh] {alert.rule.description} on {alert.agent.name}",
-            "description": generate_markdown_description(alert),
-            "impact": generate_impact(alert),
-            "mitigation": generate_mitigation(alert),
-            "severity": map_severity(alert.rule.level),
-            "numerical_severity": alert.rule.level,
-            "under_review": True,
-            "active": True,
-            "verified": True,
-            "tags": tags,
-            "found_by": [DEFAULT_FOUND_BY_TEST_TYPE_ID],
-            "unique_id_from_tool": dedup_key
-        }
-
-        cwe = extract_cwe(alert)
-        if cwe:
-            finding_data["cwe"] = cwe
-
-        assign_note = f"Automated Routing: Mapped to group '{owner_group}'. Auto-assignment is disabled in this deployment."
-        endpoint_id = None
-        endpoint_host = get_endpoint_host(alert)
-        if endpoint_host:
-            endpoint_id = dd_client.ensure_endpoint(endpoint_host, product_id)
-        else:
-            logger.warning("No usable endpoint host found for alert %s", alert.id)
-
-        existing_finding = existing_finding or dd_client.find_existing_finding(
-            finding_data,
-            endpoint_id=endpoint_id,
+    if group_config is None:
+        logger.warning(
+            "Owner group '%s' is not defined in config.yaml teams. Falling back to unassigned finding.",
+            owner_group,
         )
+        active_users = []
+        fallback_user = None
+        assignment_error = True
+    else:
+        active_users = [u for u in group_config.users if dd_client.is_user_active(u)]
+        fallback_user = group_config.fallback_user
+        assignment_error = False
+    
+    assigned_user = None
+    stored_user = get_assigned_user(dedup_key, active_users)
+    
+    if existing_finding:
+        assigned_user = stored_user
+        assignment_error = False
+    elif stored_user:
+        assigned_user = stored_user
+    elif active_users:
+        assigned_user = get_next_user(owner_group, active_users)
+    else:
+        assigned_user = fallback_user
+        assignment_error = True
 
-        # 5. Push to DefectDojo
+    assigned_user_obj = dd_client.get_user(assigned_user) if assigned_user else None
+    assigned_user_id = assigned_user_obj["id"] if assigned_user_obj else None
+    remember_assignment(dedup_key, owner_group, assigned_user)
+
+    # 4. Prepare Finding Payload
+    tags = build_tags(alert, owner_group, assignment_error)
+
+    finding_data = {
+        "test": test_id,
+        "title": f"[Wazuh] {alert.rule.description} on {alert.agent.name}",
+        "description": generate_markdown_description(alert),
+        "impact": generate_impact(alert),
+        "mitigation": generate_mitigation(alert),
+        "severity": map_severity(alert.rule.level),
+        "numerical_severity": alert.rule.level,
+        "under_review": True,
+        "active": True,
+        "verified": True,
+        "tags": tags,
+        "found_by": [DEFAULT_FOUND_BY_TEST_TYPE_ID],
+        "unique_id_from_tool": dedup_key
+    }
+
+    cwe = extract_cwe(alert)
+    if cwe:
+        finding_data["cwe"] = cwe
+
+    assign_note = f"Automated Routing: Mapped to group '{owner_group}'. Assigned to user '{assigned_user}'."
+    endpoint_id = None
+    endpoint_host = get_endpoint_host(alert)
+    if endpoint_host:
+        endpoint_id = dd_client.ensure_endpoint(endpoint_host, product_id)
+    else:
+        logger.warning("No usable endpoint host found for alert %s", alert.id)
+
+    existing_finding = existing_finding or dd_client.find_existing_finding(finding_data, endpoint_id=endpoint_id)
+
+    # DefectDojo uses reviewers as the assigned-user field.
+    if assigned_user_id:
+        finding_data["reviewers"] = [assigned_user_id]
+
+    # 5. Push to DefectDojo
+    try:
         result = dd_client.push_finding(
             finding_data,
             assign_note,
             existing_finding=existing_finding,
             endpoint_id=endpoint_id,
         )
-        if result["action"] == "deduplicated":
+        if result["action"] == "skipped_duplicate":
             logger.info(
                 "Dedup matched existing finding %s for rule %s (Dedup: %s). "
-                "No new finding was sent to DefectDojo; the existing finding was updated instead.",
+                "No new finding was sent to DefectDojo.",
                 result["finding_id"],
                 alert.rule.id,
                 dedup_key,
             )
         else:
             logger.info(
-                "Alert for rule %s was sent to DefectDojo as new finding %s (Dedup: %s) for owner group %s with no auto-assigned reviewer",
+                "Alert for rule %s was sent to DefectDojo as new finding %s (Dedup: %s) and routed to %s",
                 alert.rule.id,
                 result["finding_id"],
                 dedup_key,
-                owner_group,
+                assigned_user,
             )
     except Exception as e:
-        logger.exception("Failed to process alert %s with DefectDojo: %s", raw_payload.get("id"), e)
+        logger.error(f"Failed to push finding to DefectDojo: {e}")
 
 @app.post("/webhook")
 async def wazuh_webhook(request: Request, background_tasks: BackgroundTasks):
