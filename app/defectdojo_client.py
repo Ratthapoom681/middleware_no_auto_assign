@@ -276,6 +276,48 @@ class DefectDojoClient:
             logger.warning("Failed to ensure endpoint for host %s: %s", host, exc)
             return None
 
+    def attach_endpoint_to_finding(self, finding_id: int, endpoint_id: int) -> bool:
+        try:
+            existing = self._request(
+                "GET",
+                f"endpoint_status/?finding={finding_id}&endpoint={endpoint_id}",
+            )
+            if existing and existing.get("count", 0) > 0:
+                logger.info(
+                    "Endpoint %s is already linked to finding %s via endpoint_status",
+                    endpoint_id,
+                    finding_id,
+                )
+                return True
+
+            self._request(
+                "POST",
+                "endpoint_status/",
+                json={"finding": finding_id, "endpoint": endpoint_id},
+            )
+            logger.info("Attached endpoint %s to finding %s via endpoint_status", endpoint_id, finding_id)
+            return True
+        except Exception as exc:
+            logger.warning(
+                "Failed to attach endpoint %s to finding %s via endpoint_status: %s",
+                endpoint_id,
+                finding_id,
+                exc,
+            )
+
+        try:
+            self._request("PATCH", f"findings/{finding_id}/", json={"endpoints": [endpoint_id]})
+            logger.info("Attached endpoint %s to finding %s via findings patch fallback", endpoint_id, finding_id)
+            return True
+        except Exception as exc:
+            logger.warning(
+                "Failed to attach endpoint %s to finding %s via findings patch fallback: %s",
+                endpoint_id,
+                finding_id,
+                exc,
+            )
+            return False
+
     def _extract_related_ids(self, values: Any) -> list[int]:
         ids: list[int] = []
         if not isinstance(values, list):
@@ -350,16 +392,7 @@ class DefectDojoClient:
         action = "created"
 
         if deferred_endpoint_attach and endpoint_id is not None:
-            try:
-                self._request("PATCH", f"findings/{finding_id}/", json={"endpoints": [endpoint_id]})
-                logger.info("Attached endpoint %s to finding %s after create retry", endpoint_id, finding_id)
-            except Exception as exc:
-                logger.warning(
-                    "Failed to attach endpoint %s to finding %s after create retry: %s",
-                    endpoint_id,
-                    finding_id,
-                    exc,
-                )
+            self.attach_endpoint_to_finding(finding_id, endpoint_id)
             
         # Add a note regarding assignment using the finding-scoped endpoint.
         if should_add_note:

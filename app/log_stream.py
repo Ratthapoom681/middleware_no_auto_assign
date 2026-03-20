@@ -38,12 +38,8 @@ class InMemoryLogHandler(logging.Handler):
             return list(self._records)
 
     def _categorize(self, levelname: str, message: str) -> str | None:
-        lowered = message.lower()
         if levelname in {"ERROR", "CRITICAL"}:
             return "error"
-
-        if "sent to defectdojo" in lowered or "creating new defectdojo finding" in lowered:
-            return "defectdojo"
 
         return None
 
