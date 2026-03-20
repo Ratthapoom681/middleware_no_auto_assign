@@ -12,6 +12,39 @@ def get_rule_description(alert: WazuhAlert) -> str:
 
     return f"Wazuh rule {alert.rule.id}"
 
+
+def extract_cve(alert: WazuhAlert) -> str | None:
+    candidates = []
+
+    if alert.data:
+        candidates.extend([
+            alert.data.get("cve"),
+            alert.data.get("cve_id"),
+        ])
+
+        vulnerability = alert.data.get("vulnerability")
+        if isinstance(vulnerability, dict):
+            candidates.extend([
+                vulnerability.get("cve"),
+                vulnerability.get("cve_id"),
+            ])
+
+    raw_vulnerability = alert.raw_payload.get("vulnerability") if isinstance(alert.raw_payload, dict) else None
+    if isinstance(raw_vulnerability, dict):
+        candidates.extend([
+            raw_vulnerability.get("cve"),
+            raw_vulnerability.get("cve_id"),
+        ])
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        normalized = str(candidate).strip().upper()
+        if normalized.startswith("CVE-"):
+            return normalized
+
+    return None
+
 def map_severity(level: int) -> str:
     if level <= 4: return "Low"
     if level <= 7: return "Medium"
@@ -22,9 +55,7 @@ def generate_dedup_key(alert: WazuhAlert) -> str:
     host_identity = alert.agent.id or alert.agent.name
     alert_tokens = build_alert_match_tokens(alert)
     src_ip = alert.data.get("srcip") if alert.data else None
-    cve = None
-    if alert.data and "vulnerability" in alert.data and "cve" in alert.data["vulnerability"]:
-        cve = alert.data["vulnerability"]["cve"]
+    cve = extract_cve(alert)
 
     base = f"{alert.rule.id}-{host_identity}"
 

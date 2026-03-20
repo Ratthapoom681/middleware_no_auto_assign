@@ -5,6 +5,7 @@ from .config import AppConfig, load_config, DOJO_URL, DOJO_API_KEY
 from .matching import build_alert_match_tokens, rule_matches
 from .models import WazuhAlert
 from .wazuh_parser import (
+    extract_cve,
     extract_cwe,
     generate_dedup_key,
     generate_impact,
@@ -14,6 +15,7 @@ from .wazuh_parser import (
     map_severity,
 )
 from .routing import determine_owner_group
+from .cve_lookup import nvd_cwe_lookup
 from .defectdojo_client import DefectDojoClient
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -142,6 +144,10 @@ def process_alert(raw_payload: dict):
         }
 
         cwe = extract_cwe(alert)
+        if not cwe:
+            cve_id = extract_cve(alert)
+            if cve_id:
+                cwe = nvd_cwe_lookup.get_cwe_for_cve(cve_id)
         if cwe:
             finding_data["cwe"] = cwe
 
