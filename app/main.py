@@ -1,4 +1,5 @@
 import logging
+import re
 from fastapi import FastAPI, Request, BackgroundTasks
 from .admin_ui import configure_admin, router as admin_router
 from .config import AppConfig, load_config, DOJO_URL, DOJO_API_KEY
@@ -91,7 +92,16 @@ def _normalize_endpoint_value(value: object) -> str | None:
     if normalized.lower() in {"unknown", "n/a", "none", "-"}:
         return None
 
-    return normalized
+    # Skip obvious file paths and other non-host values commonly found in Wazuh `location`.
+    if "/" in normalized or "\\" in normalized:
+        return None
+
+    ipv4_pattern = r"(?:\d{1,3}\.){3}\d{1,3}"
+    hostname_pattern = r"[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*"
+    if re.fullmatch(ipv4_pattern, normalized) or re.fullmatch(hostname_pattern, normalized):
+        return normalized
+
+    return None
 
 
 def get_endpoint_host(alert: WazuhAlert) -> str | None:
