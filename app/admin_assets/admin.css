@@ -450,6 +450,18 @@ button:focus-visible {
   font-size: 15px;
 }
 
+.inventory-group-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.inventory-group-head h3 {
+  margin-bottom: 0;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -533,6 +545,80 @@ button:focus-visible {
   color: var(--brand-strong);
   font-size: 12px;
   font-weight: 700;
+}
+
+.test-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.test-chip {
+  width: auto;
+  justify-content: flex-start;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--muted-strong);
+  box-shadow: none;
+}
+
+.test-chip:hover,
+.test-chip:focus-visible {
+  border-color: rgba(15, 118, 110, 0.24);
+  background: rgba(255, 255, 255, 1);
+}
+
+.test-chip.active {
+  color: var(--brand-strong);
+  border-color: rgba(15, 118, 110, 0.3);
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.16), rgba(15, 118, 110, 0.08));
+  box-shadow: 0 10px 22px rgba(15, 118, 110, 0.12);
+}
+
+.test-detail-card {
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow-sm);
+  animation: rise-in 280ms ease both;
+}
+
+.test-detail-head {
+  margin-bottom: 14px;
+}
+
+.test-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-item {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid rgba(117, 94, 64, 0.12);
+  border-radius: 16px;
+  background: var(--surface-alt);
+}
+
+.detail-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detail-value {
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .create-card {
@@ -729,7 +815,8 @@ button:focus-visible {
   .create-grid,
   .create-fields,
   .wizard-steps,
-  .editor-grid {
+  .editor-grid,
+  .test-detail-grid {
     grid-template-columns: 1fr;
   }
 

@@ -1,4 +1,4 @@
-const state = { config: null, options: null };
+const state = { config: null, options: null, selectedTestId: null };
 
 const els = {
   status: document.getElementById("status"),
@@ -18,6 +18,10 @@ const els = {
   vulnerabilityTest: document.getElementById("vulnerabilityTest"),
   defaultTest: document.getElementById("defaultTest"),
   inventory: document.getElementById("inventory"),
+  testDetailCard: document.getElementById("testDetailCard"),
+  testDetailTitle: document.getElementById("testDetailTitle"),
+  testDetailSubtitle: document.getElementById("testDetailSubtitle"),
+  testDetailGrid: document.getElementById("testDetailGrid"),
 };
 
 function setStatus(message, isError = false) {
@@ -48,19 +52,105 @@ function renderPills(items, labelKey = "name") {
   }).join("");
 }
 
+function escapeAttr(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function findTestById(testId) {
+  return (state.options?.tests || []).find((test) => String(test.id) === String(testId)) || null;
+}
+
+function getTestLabel(test) {
+  return test?.title || test?.name || `Test ${test?.id ?? ""}`.trim();
+}
+
+function getEngagementName(engagementId) {
+  const engagement = (state.options?.engagements || []).find((item) => String(item.id) === String(engagementId));
+  return engagement?.name || String(engagementId || "Unknown");
+}
+
+function renderTestDetail() {
+  const tests = state.options?.tests || [];
+  if (!tests.length) {
+    els.testDetailCard.hidden = true;
+    return;
+  }
+
+  const selected = findTestById(state.selectedTestId) || tests[0];
+  state.selectedTestId = selected.id;
+
+  const fields = [
+    ["Test ID", selected.id],
+    ["Title", getTestLabel(selected)],
+    ["Engagement", getEngagementName(selected.engagement)],
+    ["Test Type", selected.test_type],
+    ["Target Start", selected.target_start || "Not set"],
+    ["Target End", selected.target_end || "Not set"],
+    ["Environment", selected.environment || "Not set"],
+    ["Branch Tag", selected.branch_tag || "Not set"],
+  ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+
+  els.testDetailTitle.textContent = getTestLabel(selected);
+  els.testDetailSubtitle.textContent = `Inspecting test ID ${selected.id} linked to engagement ${getEngagementName(selected.engagement)}.`;
+  els.testDetailGrid.innerHTML = fields.map(([label, value]) => `
+    <div class="detail-item">
+      <span class="detail-label">${label}</span>
+      <span class="detail-value">${escapeAttr(value)}</span>
+    </div>
+  `).join("");
+  els.testDetailCard.hidden = false;
+}
+
+function renderTestInventory(tests) {
+  if (!tests?.length) {
+    return `
+      <section class="inventory-group">
+        <h3>Tests</h3>
+        <div class="pills"><span class="pill">None</span></div>
+      </section>
+    `;
+  }
+
+  const selectedId = String(state.selectedTestId ?? tests[0].id);
+  return `
+    <section class="inventory-group inventory-group-tests">
+      <div class="inventory-group-head">
+        <h3>Tests</h3>
+        <p class="helper">Click a test name to view its details.</p>
+      </div>
+      <div class="test-list">
+        ${tests.map((test) => `
+          <button
+            class="test-chip ${String(test.id) === selectedId ? "active" : ""}"
+            type="button"
+            data-test-id="${escapeAttr(test.id)}"
+          >
+            ${escapeAttr(getTestLabel(test))}
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderInventory(options) {
   els.inventory.innerHTML = [
     ["Product Types", options.product_types],
     ["Products", options.products],
     ["Engagements", options.engagements],
-    ["Tests", options.tests],
     ["Users", options.users, "username"],
   ].map(([title, items, labelKey]) => `
     <section class="inventory-group">
       <h3>${title}</h3>
       <div class="pills">${renderPills(items, labelKey)}</div>
     </section>
-  `).join("");
+  `).join("") + renderTestInventory(options.tests || []);
+
+  renderTestDetail();
 }
 
 function syncSelectedObjectDetails() {
@@ -112,6 +202,9 @@ async function loadAll() {
     ]);
     state.config = config;
     state.options = options;
+    if (!findTestById(state.selectedTestId) && options.tests?.length) {
+      state.selectedTestId = options.tests[0].id;
+    }
     applyConfig();
     syncSelectedObjectDetails();
     setStatus("Destination config loaded.");
@@ -172,5 +265,11 @@ els.saveBtn.addEventListener("click", saveConfig);
 els.productTypeSelect.addEventListener("change", syncSelectedObjectDetails);
 els.productSelect.addEventListener("change", syncSelectedObjectDetails);
 els.engagementSelect.addEventListener("change", syncSelectedObjectDetails);
+els.inventory.addEventListener("click", (event) => {
+  const button = event.target.closest(".test-chip");
+  if (!button) return;
+  state.selectedTestId = button.dataset.testId;
+  renderInventory(state.options);
+});
 
 loadAll();
