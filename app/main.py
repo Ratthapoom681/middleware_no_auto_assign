@@ -133,7 +133,6 @@ def process_alert(raw_payload: dict):
             "mitigation": generate_mitigation(alert),
             "severity": map_severity(alert.rule.level),
             "numerical_severity": alert.rule.level,
-            "under_review": True,
             "active": True,
             "verified": True,
             "tags": tags,
