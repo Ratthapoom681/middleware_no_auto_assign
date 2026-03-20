@@ -94,13 +94,20 @@ class DefectDojoClient:
 
         return results
 
+    def _safe_list_all(self, endpoint: str, label: str) -> list[Dict[str, Any]]:
+        try:
+            return self._list_all(endpoint)
+        except Exception as exc:
+            logger.warning("Failed to load DefectDojo %s for admin UI: %s", label, exc)
+            return []
+
     def get_admin_options(self) -> Dict[str, list[Dict[str, Any]]]:
         return {
-            "product_types": self._list_all("product_types/?limit=200"),
-            "products": self._list_all("products/?limit=200"),
-            "engagements": self._list_all("engagements/?limit=200"),
-            "tests": self._list_all("tests/?limit=200"),
-            "users": self._list_all("users/?limit=200"),
+            "product_types": self._safe_list_all("product_types/?limit=200", "product types"),
+            "products": self._safe_list_all("products/?limit=200", "products"),
+            "engagements": self._safe_list_all("engagements/?limit=200", "engagements"),
+            "tests": self._safe_list_all("tests/?limit=200", "tests"),
+            "users": self._safe_list_all("users/?limit=200", "users"),
         }
 
     def create_admin_object(self, object_type: str, payload: dict[str, Any]) -> dict[str, Any]:
