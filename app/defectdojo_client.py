@@ -190,7 +190,9 @@ class DefectDojoClient:
     def get_finding_by_dedup(self, dedup_key: str) -> Optional[Dict[str, Any]]:
         search = self._request("GET", f"findings/?unique_id_from_tool={quote(dedup_key)}")
         if search and search.get("count", 0) > 0:
-            return search["results"][0]
+            for candidate in search["results"]:
+                if self._is_open_finding(candidate):
+                    return candidate
         return None
 
     def find_existing_finding(self, finding_data: Dict[str, Any], endpoint_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
@@ -212,6 +214,9 @@ class DefectDojoClient:
             return None
 
         for candidate in search.get("results", []):
+            if not self._is_open_finding(candidate):
+                continue
+
             candidate_cwe = candidate.get("cwe")
             if cwe and candidate_cwe and int(candidate_cwe) != int(cwe):
                 continue
@@ -234,6 +239,20 @@ class DefectDojoClient:
             return candidate
 
         return None
+
+    def _is_open_finding(self, finding: Dict[str, Any]) -> bool:
+        if finding.get("is_mitigated") is True:
+            return False
+
+        mitigated = finding.get("mitigated")
+        if mitigated:
+            return False
+
+        active = finding.get("active")
+        if active is False:
+            return False
+
+        return True
 
     def ensure_endpoint(self, host: str, product_id: int) -> Optional[int]:
         cache_key = f"{product_id}:{host}"
