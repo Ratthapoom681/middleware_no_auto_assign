@@ -599,6 +599,13 @@ button:focus-visible {
   gap: 12px;
 }
 
+.member-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
 .detail-item {
   display: grid;
   gap: 6px;
@@ -901,7 +908,8 @@ button:focus-visible {
   .create-fields,
   .wizard-steps,
   .editor-grid,
-  .test-detail-grid {
+  .test-detail-grid,
+  .member-grid {
     grid-template-columns: 1fr;
   }
 

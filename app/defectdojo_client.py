@@ -108,13 +108,75 @@ class DefectDojoClient:
             logger.warning("Failed to load DefectDojo %s for admin UI: %s", label, exc)
             return []
 
+    def _build_dojo_group_inventory(self, users: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+        groups = self._safe_list_all("dojo_groups/?limit=200", "dojo groups")
+        members = self._safe_list_all("dojo_group_members/?limit=500", "dojo group members")
+        user_lookup = {
+            user["id"]: user
+            for user in users
+            if isinstance(user, dict) and isinstance(user.get("id"), int)
+        }
+
+        inventory: list[Dict[str, Any]] = []
+        group_lookup: dict[int, Dict[str, Any]] = {}
+        for group in groups:
+            group_id = group.get("id")
+            if not isinstance(group_id, int):
+                continue
+            group_entry = {
+                "id": group_id,
+                "name": group.get("name") or f"Group {group_id}",
+                "description": group.get("description") or "",
+                "social_provider": group.get("social_provider"),
+                "members": [],
+            }
+            group_lookup[group_id] = group_entry
+            inventory.append(group_entry)
+
+        for member in members:
+            group_id = member.get("group")
+            if not isinstance(group_id, int):
+                continue
+
+            group_entry = group_lookup.get(group_id)
+            if group_entry is None:
+                continue
+
+            prefetch = member.get("prefetch") or {}
+            prefetch_user = prefetch.get("user") if isinstance(prefetch, dict) else {}
+            prefetch_role = prefetch.get("role") if isinstance(prefetch, dict) else {}
+
+            user_id = member.get("user")
+            user_details = user_lookup.get(user_id, {}) if isinstance(user_id, int) else {}
+            first_name = user_details.get("first_name") or prefetch_user.get("first_name") or ""
+            last_name = user_details.get("last_name") or prefetch_user.get("last_name") or ""
+            full_name = " ".join(part for part in [first_name, last_name] if part).strip()
+
+            group_entry["members"].append({
+                "id": user_id,
+                "username": user_details.get("username") or prefetch_user.get("username") or f"user-{user_id}",
+                "full_name": full_name,
+                "email": user_details.get("email") or prefetch_user.get("email") or "",
+                "is_active": user_details.get("is_active"),
+                "role": prefetch_role.get("name") if isinstance(prefetch_role, dict) else member.get("role"),
+            })
+
+        for group_entry in inventory:
+            group_entry["members"].sort(key=lambda member: (member.get("username") or "").lower())
+            group_entry["member_count"] = len(group_entry["members"])
+
+        inventory.sort(key=lambda group: str(group.get("name") or "").lower())
+        return inventory
+
     def get_admin_options(self) -> Dict[str, list[Dict[str, Any]]]:
+        users = self._safe_list_all("users/?limit=200", "users")
         return {
             "product_types": self._safe_list_all("product_types/?limit=200", "product types"),
             "products": self._safe_list_all("products/?limit=200", "products"),
             "engagements": self._safe_list_all("engagements/?limit=200", "engagements"),
             "tests": self._safe_list_all("tests/?limit=200", "tests"),
-            "users": self._safe_list_all("users/?limit=200", "users"),
+            "users": users,
+            "dojo_groups": self._build_dojo_group_inventory(users),
         }
 
     def create_admin_object(self, object_type: str, payload: dict[str, Any]) -> dict[str, Any]:

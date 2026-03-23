@@ -1,10 +1,11 @@
-const state = { config: null, options: { users: [] } };
+const state = { config: null, options: { users: [], dojo_groups: [] } };
 
 const els = {
   status: document.getElementById("status"),
   saveBtn: document.getElementById("saveBtn"),
   reloadBtn: document.getElementById("reloadBtn"),
   teamsEditor: document.getElementById("teamsEditor"),
+  dojoTeamsInventory: document.getElementById("dojoTeamsInventory"),
   addTeamBtn: document.getElementById("addTeamBtn"),
 };
 
@@ -34,6 +35,43 @@ function joinCommaList(values) {
 
 function getUsernames() {
   return (state.options?.users || []).map((user) => user.username).filter(Boolean);
+}
+
+function renderDojoTeamsInventory() {
+  const groups = state.options?.dojo_groups || [];
+
+  if (!groups.length) {
+    els.dojoTeamsInventory.innerHTML = '<div class="helper">No DefectDojo group data is available right now.</div>';
+    return;
+  }
+
+  els.dojoTeamsInventory.innerHTML = groups.map((group) => `
+    <section class="inventory-group">
+      <div class="inventory-group-head">
+        <div>
+          <h3>${escapeAttr(group.name || "Unnamed Group")}</h3>
+          <p class="helper">${escapeAttr(group.description || "No description")}</p>
+        </div>
+        <span class="pill">${escapeAttr(String(group.member_count || 0))} users</span>
+      </div>
+      ${(group.social_provider && String(group.social_provider).trim()) ? `
+        <div class="helper">Source: ${escapeAttr(group.social_provider)}</div>
+      ` : ""}
+      ${(group.members || []).length ? `
+        <div class="member-grid">
+          ${(group.members || []).map((member) => `
+            <article class="detail-item">
+              <span class="detail-label">${escapeAttr(member.username || "Unknown user")}</span>
+              <div class="detail-value">${escapeAttr(member.full_name || member.email || "No extra profile details")}</div>
+              <div class="helper">${escapeAttr(member.role ? `Role: ${member.role}` : "Role unavailable")}</div>
+            </article>
+          `).join("")}
+        </div>
+      ` : `
+        <div class="helper">No users are currently assigned to this DefectDojo team.</div>
+      `}
+    </section>
+  `).join("");
 }
 
 function getTeamEntries() {
@@ -138,10 +176,11 @@ async function loadAll() {
     try {
       state.options = await fetchJson("/admin/api/dojo-options");
     } catch (error) {
-      state.options = { users: [] };
+      state.options = { users: [], dojo_groups: [] };
     }
 
     renderTeamEditors();
+    renderDojoTeamsInventory();
     setStatus("Team config loaded.");
   } catch (error) {
     setStatus(`Failed to load team config: ${error}`, true);

@@ -32,17 +32,30 @@
 
     <div class="status" id="status"></div>
 
-    <section class="panel">
-      <div class="panel-head">
-        <div>
-          <p class="section-label">Ownership Directory</p>
-          <h2 class="panel-title">Team Setup</h2>
-          <p class="panel-lede">Define the teams your routing rules can target and keep optional user references grouped with each team.</p>
+    <div class="layout">
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="section-label">Ownership Directory</p>
+            <h2 class="panel-title">Team Setup</h2>
+            <p class="panel-lede">Define the teams your routing rules can target and keep optional user references grouped with each team.</p>
+          </div>
+          <button class="ghost" type="button" id="addTeamBtn">Add Team</button>
         </div>
-        <button class="ghost" type="button" id="addTeamBtn">Add Team</button>
-      </div>
-      <div class="editor-list" id="teamsEditor"></div>
-    </section>
+        <div class="editor-list" id="teamsEditor"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="section-label">Live Directory</p>
+            <h2 class="panel-title">Existing DefectDojo Teams</h2>
+            <p class="panel-lede">See the groups already present in DefectDojo and the users assigned behind each one.</p>
+          </div>
+        </div>
+        <div class="inventory" id="dojoTeamsInventory"></div>
+      </section>
+    </div>
   </div>
   <script src="/admin/assets/admin_teams.js"></script>
 </body>
