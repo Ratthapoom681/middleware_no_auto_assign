@@ -11,10 +11,11 @@ At a high level, the middleware:
 1. Accepts Wazuh alerts on `/webhook`
 2. Places them into a durable SQLite-backed queue
 3. Processes them in the background
-4. Routes them to a team / owner group
-5. Builds a DefectDojo finding payload
-6. Applies dedup, endpoint, reviewer, and grouping logic
-7. Creates a new finding or skips creation if a duplicate already exists
+4. Skips any alert that is not a Wazuh vulnerability detector alert
+5. Routes accepted alerts to a team / owner group
+6. Builds a DefectDojo finding payload
+7. Applies dedup, endpoint, reviewer, grouping logic, and enrichment
+8. Creates a new finding or skips creation if a duplicate already exists
 
 ## Current Architecture
 
@@ -67,7 +68,19 @@ Why this matters:
 - `WazuhAlert` is the main payload model
 - Missing or malformed payloads are treated as permanent failures and not retried forever
 
-### 3. Routing
+### 3. Vulnerability Detector Filter
+
+The middleware now only sends vulnerability detector style alerts to DefectDojo.
+
+Accepted alerts are those that match at least one of these conditions:
+
+- `data.vulnerability` exists
+- root-level `vulnerability` exists
+- Wazuh tokens indicate `vulnerability-detector`, `vulnerability`, or `syscollector`
+
+All other alerts are logged and skipped before routing or finding creation.
+
+### 4. Routing
 
 Routing uses `config.yaml`:
 
@@ -77,7 +90,7 @@ Routing uses `config.yaml`:
 
 Matching is based on Wazuh rule groups and decoder/program tokens, not DefectDojo tags.
 
-### 4. DefectDojo Context
+### 5. DefectDojo Context
 
 For each alert, the middleware ensures these objects exist:
 
@@ -88,7 +101,7 @@ For each alert, the middleware ensures these objects exist:
 
 The service reuses existing DefectDojo objects when possible instead of creating duplicates.
 
-### 5. Finding Creation Logic
+### 6. Finding Creation Logic
 
 The middleware builds:
 

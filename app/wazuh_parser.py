@@ -197,6 +197,29 @@ def extract_cwe(alert: WazuhAlert) -> int | None:
     cwe, _ = map_internal_cwe(alert)
     return cwe
 
+
+def is_vulnerability_detector_alert(alert: WazuhAlert) -> bool:
+    if alert.data and isinstance(alert.data.get("vulnerability"), dict):
+        return True
+
+    raw_vulnerability = alert.raw_payload.get("vulnerability") if isinstance(alert.raw_payload, dict) else None
+    if isinstance(raw_vulnerability, dict):
+        return True
+
+    alert_tokens = build_alert_match_tokens(alert)
+    if any(
+        rule_matches(match, alert_tokens)
+        for match in [
+            "vulnerability-detector",
+            "vulnerability_detector",
+            "vulnerability",
+            "syscollector",
+        ]
+    ):
+        return True
+
+    return False
+
 def generate_markdown_description(alert: WazuhAlert) -> str:
     rule_description = get_rule_description(alert)
     desc = f"### Wazuh Alert Summary\n\n"

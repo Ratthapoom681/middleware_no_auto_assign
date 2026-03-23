@@ -16,6 +16,7 @@ from .wazuh_parser import (
     generate_markdown_description,
     generate_mitigation,
     get_rule_description,
+    is_vulnerability_detector_alert,
     map_severity,
 )
 from .routing import determine_owner_group
@@ -231,6 +232,15 @@ def process_alert(raw_payload: dict):
         alert = WazuhAlert(**raw_payload, raw_payload=raw_payload)
     except Exception as e:
         raise PermanentAlertProcessingError(f"Failed to parse alert: {e}") from e
+
+    if not is_vulnerability_detector_alert(alert):
+        logger.info(
+            "Skipping alert %s because it is not a Wazuh vulnerability detector alert (rule=%s, groups=%s).",
+            alert.id,
+            alert.rule.id,
+            ",".join(alert.rule.groups),
+        )
+        return
 
     try:
         # 2. Routing
