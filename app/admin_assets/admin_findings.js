@@ -417,14 +417,21 @@ function renderFindingStatusRuleEditors() {
 }
 
 function collectDedupSettings() {
+  const currentSettings = getDedupSettings();
   const enabled = !!els.dedupSettingsEditor.querySelector(".dedup-enabled")?.checked;
   const useTitleFallback = enabled && !!els.dedupSettingsEditor.querySelector(".dedup-use-title-test-fallback")?.checked;
-  const networkMatchFields = Array.from(
+  const selectedNetworkFields = Array.from(
     els.dedupSettingsEditor.querySelectorAll(".dedup-network-field:checked"),
   ).map((field) => field.value);
-  const useNetworkMatch = useTitleFallback
-    && !!els.dedupSettingsEditor.querySelector(".dedup-require-network-match")?.checked
-    && networkMatchFields.length > 0;
+  const networkMatchRequested = useTitleFallback
+    && !!els.dedupSettingsEditor.querySelector(".dedup-require-network-match")?.checked;
+  const networkMatchFields = networkMatchRequested
+    ? (selectedNetworkFields.length
+        ? selectedNetworkFields
+        : (currentSettings.network_match_fields?.length
+            ? currentSettings.network_match_fields
+            : ["src_ip", "dst_ip"]))
+    : [];
 
   return {
     enabled,
@@ -432,11 +439,11 @@ function collectDedupSettings() {
     use_title_test_fallback: useTitleFallback,
     require_same_endpoint: useTitleFallback && !!els.dedupSettingsEditor.querySelector(".dedup-require-same-endpoint")?.checked,
     require_same_cwe: useTitleFallback && !!els.dedupSettingsEditor.querySelector(".dedup-require-same-cwe")?.checked,
-    require_network_match: useNetworkMatch,
-    network_match_mode: useNetworkMatch
+    require_network_match: networkMatchRequested,
+    network_match_mode: networkMatchRequested
       ? (els.dedupSettingsEditor.querySelector(".dedup-network-match-mode")?.value || "any")
       : "any",
-    network_match_fields: useNetworkMatch ? networkMatchFields : [],
+    network_match_fields: networkMatchFields,
     ignore_mitigated: enabled && !!els.dedupSettingsEditor.querySelector(".dedup-ignore-mitigated")?.checked,
     action_on_match: els.dedupSettingsEditor.querySelector(".dedup-action-on-match")?.value || "skip",
   };
