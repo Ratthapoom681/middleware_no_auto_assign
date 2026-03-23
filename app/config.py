@@ -1,7 +1,7 @@
 import os
 import yaml
-from pydantic import BaseModel
-from typing import List, Dict
+from pydantic import BaseModel, model_validator
+from typing import List, Dict, Optional, Literal
 
 class RoutingRule(BaseModel):
     match_rule_groups: List[str]
@@ -10,6 +10,49 @@ class RoutingRule(BaseModel):
 class TagRule(BaseModel):
     match_rule_groups: List[str]
     tags: List[str]
+
+
+class FindingDefaults(BaseModel):
+    active: bool = True
+    verified: bool = True
+    false_positive: bool = False
+    out_of_scope: bool = False
+    risk_accepted: bool = False
+    under_review: Optional[bool] = None
+
+
+class FindingStatusRule(BaseModel):
+    name: str
+    match_rule_groups: List[str] = []
+    severity_min: Optional[int] = None
+    severity_max: Optional[int] = None
+    set_active: Optional[bool] = None
+    set_verified: Optional[bool] = None
+    set_false_positive: Optional[bool] = None
+    set_out_of_scope: Optional[bool] = None
+    set_risk_accepted: Optional[bool] = None
+    set_under_review: Optional[bool] = None
+
+    @model_validator(mode="after")
+    def validate_severity_range(self):
+        if (
+            self.severity_min is not None
+            and self.severity_max is not None
+            and self.severity_min > self.severity_max
+        ):
+            raise ValueError("severity_min cannot be greater than severity_max")
+        return self
+
+
+class DedupSettings(BaseModel):
+    enabled: bool = True
+    use_unique_id: bool = True
+    use_title_test_fallback: bool = True
+    require_same_endpoint: bool = True
+    require_same_cwe: bool = True
+    require_network_match: bool = True
+    ignore_mitigated: bool = True
+    action_on_match: Literal["skip", "create_new"] = "skip"
 
 class TeamConfig(BaseModel):
     users: List[str]
@@ -44,9 +87,12 @@ class CategoryConfig(BaseModel):
 class AppConfig(BaseModel):
     defectdojo: DefectDojoConfig
     categories: CategoryConfig = CategoryConfig()
+    finding_defaults: FindingDefaults = FindingDefaults()
+    dedup_settings: DedupSettings = DedupSettings()
     teams: Dict[str, TeamConfig]
     routing_rules: List[RoutingRule]
     tag_rules: List[TagRule] = []
+    finding_status_rules: List[FindingStatusRule] = []
     default_owner_group: str
 
 def load_config(path: str = "config.yaml") -> AppConfig:

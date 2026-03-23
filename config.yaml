@@ -22,6 +22,24 @@ categories:
     vulnerability-detector: "Vulnerability Detector"
   default_test: "General Monitoring"
 
+finding_defaults:
+  active: true
+  verified: true
+  false_positive: false
+  out_of_scope: false
+  risk_accepted: false
+  under_review:
+
+dedup_settings:
+  enabled: true
+  use_unique_id: true
+  use_title_test_fallback: true
+  require_same_endpoint: true
+  require_same_cwe: true
+  require_network_match: true
+  ignore_mitigated: true
+  action_on_match: "skip"
+
 teams:
   SecOps:
     users:
@@ -60,5 +78,7 @@ tag_rules:
     tags: ["threat-hunting"]
   - match_rule_groups: ["vulnerability", "vuln", "syscollector"]
     tags: ["vulnerability-detector"]
+
+finding_status_rules: []
 
 default_owner_group: "SecOps"

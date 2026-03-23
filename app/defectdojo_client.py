@@ -4,14 +4,21 @@ import logging
 from urllib.parse import quote
 from tenacity import retry, wait_exponential, stop_after_attempt
 from typing import Optional, Dict, Any
-from .config import DefectDojoConfig, DOJO_TIMEOUT_SECONDS
+from .config import DefectDojoConfig, DedupSettings, DOJO_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
 class DefectDojoClient:
-    def __init__(self, base_url: str, api_key: str, dojo_config: DefectDojoConfig):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        dojo_config: DefectDojoConfig,
+        dedup_settings: DedupSettings,
+    ):
         self.base_url = base_url
         self.dojo_config = dojo_config
+        self.dedup_settings = dedup_settings
         self.headers = {
             "Authorization": f"Token {api_key}",
             "Content-Type": "application/json"
@@ -188,19 +195,29 @@ class DefectDojoClient:
         return context
 
     def get_finding_by_dedup(self, dedup_key: str) -> Optional[Dict[str, Any]]:
+        if not self.dedup_settings.enabled or not self.dedup_settings.use_unique_id:
+            return None
+
         search = self._request("GET", f"findings/?unique_id_from_tool={quote(dedup_key)}")
         if search and search.get("count", 0) > 0:
             for candidate in search["results"]:
-                if self._is_open_finding(candidate):
+                if self._is_dedup_candidate(candidate):
                     return candidate
         return None
 
     def find_existing_finding(self, finding_data: Dict[str, Any], endpoint_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        if not self.dedup_settings.enabled:
+            return None
+
         dedup_key = finding_data["unique_id_from_tool"]
-        existing_finding = self.get_finding_by_dedup(dedup_key)
-        if existing_finding:
-            logger.info("Pre-check matched existing DefectDojo finding by unique_id_from_tool for dedup key %s", dedup_key)
-            return existing_finding
+        if self.dedup_settings.use_unique_id:
+            existing_finding = self.get_finding_by_dedup(dedup_key)
+            if existing_finding:
+                logger.info("Pre-check matched existing DefectDojo finding by unique_id_from_tool for dedup key %s", dedup_key)
+                return existing_finding
+
+        if not self.dedup_settings.use_title_test_fallback:
+            return None
 
         title = finding_data.get("title")
         test_id = finding_data.get("test")
@@ -214,19 +231,22 @@ class DefectDojoClient:
             return None
 
         for candidate in search.get("results", []):
-            if not self._is_open_finding(candidate):
+            if not self._is_dedup_candidate(candidate):
                 continue
 
             candidate_cwe = candidate.get("cwe")
-            if cwe and candidate_cwe and int(candidate_cwe) != int(cwe):
-                continue
+            if cwe and self.dedup_settings.require_same_cwe:
+                if candidate_cwe is None:
+                    continue
+                if int(candidate_cwe) != int(cwe):
+                    continue
 
-            if endpoint_id is not None:
+            if endpoint_id is not None and self.dedup_settings.require_same_endpoint:
                 candidate_endpoint_ids = self._extract_related_ids(candidate.get("endpoints", []))
                 if endpoint_id not in candidate_endpoint_ids:
                     continue
 
-            if network_tags:
+            if network_tags and self.dedup_settings.require_network_match:
                 candidate_tags = set(self._extract_tag_names(candidate.get("tags", [])))
                 if not (network_tags & candidate_tags):
                     continue
@@ -240,7 +260,10 @@ class DefectDojoClient:
 
         return None
 
-    def _is_open_finding(self, finding: Dict[str, Any]) -> bool:
+    def _is_dedup_candidate(self, finding: Dict[str, Any]) -> bool:
+        if not self.dedup_settings.ignore_mitigated:
+            return True
+
         if finding.get("is_mitigated") is True:
             return False
 
@@ -361,13 +384,21 @@ class DefectDojoClient:
             existing_finding = self.find_existing_finding(finding_data, endpoint_id=endpoint_id)
 
         if existing_finding:
-            finding_id = existing_finding["id"]
-            logger.info(
-                "Skipping create for dedup key %s because DefectDojo finding %s already exists",
-                dedup_key,
-                finding_id,
-            )
-            return {"finding_id": finding_id, "action": "skipped_duplicate"}
+            if self.dedup_settings.action_on_match == "create_new":
+                logger.info(
+                    "Dedup matched finding %s for key %s but action_on_match=create_new, so a new finding will still be created",
+                    existing_finding["id"],
+                    dedup_key,
+                )
+                existing_finding = None
+            else:
+                finding_id = existing_finding["id"]
+                logger.info(
+                    "Skipping create for dedup key %s because DefectDojo finding %s already exists",
+                    dedup_key,
+                    finding_id,
+                )
+                return {"finding_id": finding_id, "action": "skipped_duplicate"}
 
         payload = dict(finding_data)
         if endpoint_id:

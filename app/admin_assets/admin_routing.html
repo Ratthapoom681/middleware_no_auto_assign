@@ -75,6 +75,37 @@
           </div>
           <div class="editor-list" id="tagRulesEditor"></div>
         </div>
+
+        <div class="editor-group">
+          <div class="editor-head">
+            <div>
+              <h4>Dedup Settings</h4>
+              <p>Control how duplicate findings are matched and whether duplicates are skipped or still created.</p>
+            </div>
+          </div>
+          <div class="editor-list" id="dedupSettingsEditor"></div>
+        </div>
+
+        <div class="editor-group">
+          <div class="editor-head">
+            <div>
+              <h4>Finding Defaults</h4>
+              <p>Set the default behavior for every new finding before any rule-specific overrides are applied.</p>
+            </div>
+          </div>
+          <div class="editor-list" id="findingDefaultsEditor"></div>
+        </div>
+
+        <div class="editor-group">
+          <div class="editor-head">
+            <div>
+              <h4>Finding Status Rules</h4>
+              <p>Override finding fields in real time based on severity and optional Wazuh rule group matches.</p>
+            </div>
+            <button class="ghost" type="button" id="addFindingStatusRuleBtn">Add Status Rule</button>
+          </div>
+          <div class="editor-list" id="findingStatusRulesEditor"></div>
+        </div>
       </div>
     </section>
   </div>

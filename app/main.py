@@ -26,14 +26,14 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Wazuh to DefectDojo Integrator")
 config = load_config()
-dd_client = DefectDojoClient(DOJO_URL, DOJO_API_KEY, config.defectdojo)
+dd_client = DefectDojoClient(DOJO_URL, DOJO_API_KEY, config.defectdojo, config.dedup_settings)
 DEFAULT_FOUND_BY_TEST_TYPE_ID = 1
 
 
 def reload_runtime_config(new_config: AppConfig) -> None:
     global config, dd_client
     config = new_config
-    dd_client = DefectDojoClient(DOJO_URL, DOJO_API_KEY, config.defectdojo)
+    dd_client = DefectDojoClient(DOJO_URL, DOJO_API_KEY, config.defectdojo, config.dedup_settings)
 
 
 configure_admin(
@@ -79,6 +79,40 @@ def get_test_category(tags: list[str]) -> str:
         if tag in tags:
             return test_name
     return config.categories.default_test
+
+
+def apply_finding_status_rules(alert: WazuhAlert, finding_data: dict) -> None:
+    alert_tokens = build_alert_match_tokens(alert)
+
+    for rule in config.finding_status_rules:
+        if rule.match_rule_groups and not any(
+            rule_matches(match, alert_tokens) for match in rule.match_rule_groups
+        ):
+            continue
+
+        if rule.severity_min is not None and alert.rule.level < rule.severity_min:
+            continue
+
+        if rule.severity_max is not None and alert.rule.level > rule.severity_max:
+            continue
+
+        if rule.set_active is not None:
+            finding_data["active"] = rule.set_active
+
+        if rule.set_verified is not None:
+            finding_data["verified"] = rule.set_verified
+
+        if rule.set_false_positive is not None:
+            finding_data["false_p"] = rule.set_false_positive
+
+        if rule.set_out_of_scope is not None:
+            finding_data["out_of_scope"] = rule.set_out_of_scope
+
+        if rule.set_risk_accepted is not None:
+            finding_data["risk_accepted"] = rule.set_risk_accepted
+
+        if rule.set_under_review is not None:
+            finding_data["under_review"] = rule.set_under_review
 
 
 def _normalize_endpoint_value(value: object) -> str | None:
@@ -175,12 +209,20 @@ def process_alert(raw_payload: dict):
             "mitigation": generate_mitigation(alert),
             "severity": map_severity(alert.rule.level),
             "numerical_severity": alert.rule.level,
-            "active": True,
-            "verified": True,
+            "active": config.finding_defaults.active,
+            "verified": config.finding_defaults.verified,
+            "false_p": config.finding_defaults.false_positive,
+            "out_of_scope": config.finding_defaults.out_of_scope,
+            "risk_accepted": config.finding_defaults.risk_accepted,
             "tags": tags,
             "found_by": [DEFAULT_FOUND_BY_TEST_TYPE_ID],
             "unique_id_from_tool": dedup_key
         }
+
+        if config.finding_defaults.under_review is not None:
+            finding_data["under_review"] = config.finding_defaults.under_review
+
+        apply_finding_status_rules(alert, finding_data)
 
         cwe = extract_cwe(alert)
         if not cwe:
