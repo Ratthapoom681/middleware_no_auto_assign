@@ -309,8 +309,8 @@ class DefectDojoClient:
                     continue
 
             if network_tags and self.dedup_settings.require_network_match:
-                candidate_tags = set(self._extract_tag_names(candidate.get("tags", [])))
-                if not (network_tags & candidate_tags):
+                candidate_network_tags = self._extract_network_tags(candidate.get("tags", []))
+                if not self._network_tags_match(network_tags, candidate_network_tags):
                     continue
 
             logger.info(
@@ -427,11 +427,39 @@ class DefectDojoClient:
                 names.append(value["name"])
         return names
 
-    def _extract_network_tags(self, values: list[str]) -> set[str]:
-        return {
-            value for value in values
-            if value.startswith("src_ip:") or value.startswith("observed_ip:") or value.startswith("dst_ip:")
-        }
+    def _extract_network_tags(self, values: Any) -> dict[str, str]:
+        selected_fields = set(self.dedup_settings.network_match_fields or [])
+        tags_by_field: dict[str, str] = {}
+        for value in self._extract_tag_names(values):
+            if ":" not in value:
+                continue
+            field_name, field_value = value.split(":", 1)
+            if field_name not in {"src_ip", "observed_ip", "dst_ip"}:
+                continue
+            if selected_fields and field_name not in selected_fields:
+                continue
+            normalized_value = field_value.strip()
+            if normalized_value:
+                tags_by_field[field_name] = normalized_value
+        return tags_by_field
+
+    def _network_tags_match(self, finding_tags: dict[str, str], candidate_tags: dict[str, str]) -> bool:
+        selected_fields = [
+            field for field in (self.dedup_settings.network_match_fields or [])
+            if field in {"src_ip", "observed_ip", "dst_ip"}
+        ]
+        if not selected_fields:
+            return True
+
+        matches: list[bool] = []
+        for field in selected_fields:
+            finding_value = finding_tags.get(field)
+            candidate_value = candidate_tags.get(field)
+            matches.append(bool(finding_value and candidate_value and finding_value == candidate_value))
+
+        if self.dedup_settings.network_match_mode == "all":
+            return all(matches)
+        return any(matches)
 
     def push_finding(
         self,

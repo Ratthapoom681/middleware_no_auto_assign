@@ -51,6 +51,12 @@ class DedupSettings(BaseModel):
     require_same_endpoint: bool = True
     require_same_cwe: bool = True
     require_network_match: bool = True
+    network_match_mode: Literal["any", "all"] = "any"
+    network_match_fields: List[Literal["src_ip", "observed_ip", "dst_ip"]] = [
+        "src_ip",
+        "observed_ip",
+        "dst_ip",
+    ]
     ignore_mitigated: bool = True
     action_on_match: Literal["skip", "create_new"] = "skip"
 

@@ -803,6 +803,11 @@ button:focus-visible {
   font-size: 0.98rem;
 }
 
+.choice-stack {
+  display: grid;
+  gap: 10px;
+}
+
 .muted-card {
   opacity: 0.68;
 }

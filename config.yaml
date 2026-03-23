@@ -37,6 +37,8 @@ dedup_settings:
   require_same_endpoint: true
   require_same_cwe: true
   require_network_match: true
+  network_match_mode: "any"
+  network_match_fields: ["src_ip", "observed_ip", "dst_ip"]
   ignore_mitigated: true
   action_on_match: "skip"
 

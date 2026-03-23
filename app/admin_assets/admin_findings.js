@@ -18,6 +18,8 @@ const DEDUP_PRESETS = {
     require_same_endpoint: true,
     require_same_cwe: true,
     require_network_match: true,
+    network_match_mode: "any",
+    network_match_fields: ["src_ip", "observed_ip", "dst_ip"],
     ignore_mitigated: true,
     action_on_match: "skip",
   },
@@ -28,6 +30,8 @@ const DEDUP_PRESETS = {
     require_same_endpoint: false,
     require_same_cwe: false,
     require_network_match: false,
+    network_match_mode: "all",
+    network_match_fields: ["src_ip", "dst_ip"],
     ignore_mitigated: true,
     action_on_match: "skip",
   },
@@ -38,6 +42,8 @@ const DEDUP_PRESETS = {
     require_same_endpoint: false,
     require_same_cwe: false,
     require_network_match: false,
+    network_match_mode: "any",
+    network_match_fields: ["src_ip", "observed_ip", "dst_ip"],
     ignore_mitigated: true,
     action_on_match: "skip",
   },
@@ -48,6 +54,8 @@ const DEDUP_PRESETS = {
     require_same_endpoint: false,
     require_same_cwe: false,
     require_network_match: false,
+    network_match_mode: "any",
+    network_match_fields: ["src_ip", "observed_ip", "dst_ip"],
     ignore_mitigated: true,
     action_on_match: "create_new",
   },
@@ -122,7 +130,10 @@ function describeDedupSettings(settings) {
   if (settings.use_title_test_fallback) checks.push("same title inside the same test");
   if (settings.require_same_endpoint) checks.push("same endpoint");
   if (settings.require_same_cwe) checks.push("same CWE");
-  if (settings.require_network_match) checks.push("same network tags");
+  if (settings.require_network_match) {
+    const selectedFields = (settings.network_match_fields || []).join(" + ") || "selected network fields";
+    checks.push(`network match uses ${settings.network_match_mode === "all" ? "all" : "any"} of ${selectedFields}`);
+  }
 
   return {
     headline: settings.action_on_match === "skip"
@@ -144,6 +155,8 @@ function renderDedupSettingsEditor() {
   const activePreset = getDedupPresetName(settings);
   const description = describeDedupSettings(settings);
   const fallbackEnabled = settings.enabled && settings.use_title_test_fallback;
+  const networkEnabled = fallbackEnabled && settings.require_network_match;
+  const selectedNetworkFields = new Set(settings.network_match_fields || []);
 
   els.dedupSettingsEditor.innerHTML = `
     <div class="editor-card">
@@ -231,10 +244,40 @@ function renderDedupSettingsEditor() {
           <label class="toggle-row">
             <input class="dedup-require-network-match" type="checkbox" ${settings.require_network_match ? "checked" : ""} ${!fallbackEnabled ? "disabled" : ""} />
             <span>
-              <strong>Require same network tags</strong>
-              <small>Only match if source or destination IP-related tags line up.</small>
+              <strong>Require network field match</strong>
+              <small>Use selected IP fields like source and destination when deciding whether two findings are duplicates.</small>
             </span>
           </label>
+          <label class="field">
+            <span>Network field match mode</span>
+            <select class="dedup-network-match-mode" ${!networkEnabled ? "disabled" : ""}>
+              <option value="any" ${settings.network_match_mode === "any" ? "selected" : ""}>Any selected field can match</option>
+              <option value="all" ${settings.network_match_mode === "all" ? "selected" : ""}>All selected fields must match</option>
+            </select>
+          </label>
+          <div class="choice-stack">
+            <label class="toggle-row">
+              <input class="dedup-network-field" type="checkbox" value="src_ip" ${selectedNetworkFields.has("src_ip") ? "checked" : ""} ${!networkEnabled ? "disabled" : ""} />
+              <span>
+                <strong>Source IP</strong>
+                <small>Use the src_ip tag from the finding.</small>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input class="dedup-network-field" type="checkbox" value="dst_ip" ${selectedNetworkFields.has("dst_ip") ? "checked" : ""} ${!networkEnabled ? "disabled" : ""} />
+              <span>
+                <strong>Destination IP</strong>
+                <small>Use the dst_ip tag from the finding.</small>
+              </span>
+            </label>
+            <label class="toggle-row">
+              <input class="dedup-network-field" type="checkbox" value="observed_ip" ${selectedNetworkFields.has("observed_ip") ? "checked" : ""} ${!networkEnabled ? "disabled" : ""} />
+              <span>
+                <strong>Observed IP</strong>
+                <small>Use the generic observed IP tag when the alert does not separate source and destination cleanly.</small>
+              </span>
+            </label>
+          </div>
         </section>
       </div>
     </div>
@@ -376,6 +419,12 @@ function renderFindingStatusRuleEditors() {
 function collectDedupSettings() {
   const enabled = !!els.dedupSettingsEditor.querySelector(".dedup-enabled")?.checked;
   const useTitleFallback = enabled && !!els.dedupSettingsEditor.querySelector(".dedup-use-title-test-fallback")?.checked;
+  const networkMatchFields = Array.from(
+    els.dedupSettingsEditor.querySelectorAll(".dedup-network-field:checked"),
+  ).map((field) => field.value);
+  const useNetworkMatch = useTitleFallback
+    && !!els.dedupSettingsEditor.querySelector(".dedup-require-network-match")?.checked
+    && networkMatchFields.length > 0;
 
   return {
     enabled,
@@ -383,7 +432,11 @@ function collectDedupSettings() {
     use_title_test_fallback: useTitleFallback,
     require_same_endpoint: useTitleFallback && !!els.dedupSettingsEditor.querySelector(".dedup-require-same-endpoint")?.checked,
     require_same_cwe: useTitleFallback && !!els.dedupSettingsEditor.querySelector(".dedup-require-same-cwe")?.checked,
-    require_network_match: useTitleFallback && !!els.dedupSettingsEditor.querySelector(".dedup-require-network-match")?.checked,
+    require_network_match: useNetworkMatch,
+    network_match_mode: useNetworkMatch
+      ? (els.dedupSettingsEditor.querySelector(".dedup-network-match-mode")?.value || "any")
+      : "any",
+    network_match_fields: useNetworkMatch ? networkMatchFields : [],
     ignore_mitigated: enabled && !!els.dedupSettingsEditor.querySelector(".dedup-ignore-mitigated")?.checked,
     action_on_match: els.dedupSettingsEditor.querySelector(".dedup-action-on-match")?.value || "skip",
   };
