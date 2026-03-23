@@ -1,10 +1,12 @@
 import logging
 import re
+from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request
 from .alert_queue import AlertQueueWorker, PermanentAlertProcessingError
 from .assignment import get_assigned_user, get_next_user, init_db, remember_assignment
 from .admin_ui import configure_admin, router as admin_router
 from .config import AppConfig, load_config, DOJO_URL, DOJO_API_KEY
+from .finding_groups import evaluate_finding_group_rule, init_finding_group_db
 from .matching import build_alert_match_tokens, rule_matches
 from .models import WazuhAlert
 from .wazuh_parser import (
@@ -213,6 +215,7 @@ def select_reviewer(owner_group: str, group_config, dedup_key: str) -> tuple[dic
 @app.on_event("startup")
 def startup_event():
     init_db()
+    init_finding_group_db()
     alert_queue.start()
     logger.info(
         "Service started. Reviewer auto-assignment is enabled only for findings marked under review, and alerts are processed through the durable queue."
@@ -236,9 +239,13 @@ def process_alert(raw_payload: dict):
         group_config = config.teams.get(owner_group)
         tags = build_tags(alert, owner_group, assignment_error=False)
         test_category = get_test_category(tags)
+        group_rule_enabled = any(rule.enabled for rule in config.finding_group_rules)
 
         # 3. Prepare DefectDojo test context
-        context = dd_client.ensure_context(test_category)
+        context = dd_client.ensure_context(
+            test_category,
+            finding_group_mode="vuln_id_from_tool" if group_rule_enabled else None,
+        )
         test_id = context["test_id"]
         product_id = context["product_id"]
         dedup_key = generate_dedup_key(alert)
@@ -294,6 +301,21 @@ def process_alert(raw_payload: dict):
         if cwe:
             finding_data["cwe"] = cwe
 
+        finding_group_match = evaluate_finding_group_rule(alert, finding_data, config.finding_group_rules)
+        if finding_group_match:
+            finding_data["vuln_id_from_tool"] = finding_group_match["group_key"]
+            tags = list(
+                dict.fromkeys(
+                    tags
+                    + [
+                        "finding_group_active",
+                        f"finding_group_rule:{finding_group_match['rule_name'].strip().lower().replace(' ', '-')}",
+                        f"finding_group_key:{finding_group_match['group_short_key']}",
+                    ]
+                )
+            )
+            finding_data["tags"] = tags
+
         assign_note = f"Automated Routing: Mapped to group '{owner_group}'."
         if reviewer is not None:
             assign_note += f" Auto-assigned reviewer '{reviewer.get('username')}' because the finding is under review."
@@ -301,6 +323,12 @@ def process_alert(raw_payload: dict):
             assign_note += " Finding is under review, but no reviewer could be auto-assigned."
         else:
             assign_note += " Finding is not under review, so no reviewer was auto-assigned."
+        if finding_group_match:
+            assign_note += (
+                f" Finding grouping rule '{finding_group_match['rule_name']}' activated after "
+                f"{finding_group_match['unique_src_count']} unique source IPs targeted dst_ip "
+                f"'{finding_group_match['dst_ip']}' within {finding_group_match['window_minutes']} minutes."
+            )
         endpoint_id = None
         endpoint_host = get_endpoint_host(alert)
         if endpoint_host:
@@ -320,6 +348,21 @@ def process_alert(raw_payload: dict):
             existing_finding=existing_finding,
             endpoint_id=endpoint_id,
         )
+        if finding_group_match:
+            try:
+                anchor_time = datetime.fromisoformat(alert.timestamp.replace("Z", "+00:00")) if alert.timestamp else datetime.now(timezone.utc)
+                if anchor_time.tzinfo is None:
+                    anchor_time = anchor_time.replace(tzinfo=timezone.utc)
+            except Exception:
+                anchor_time = datetime.now(timezone.utc)
+            dd_client.apply_group_key_to_recent_findings(
+                test_id,
+                finding_group_match["search_title"],
+                finding_group_match["search_dst_ip"],
+                finding_group_match["group_key"],
+                finding_group_match["window_minutes"],
+                anchor_time=anchor_time.astimezone(timezone.utc),
+            )
         if result["action"] == "skipped_duplicate":
             logger.info(
                 "Dedup matched existing finding %s for rule %s (Dedup: %s). "

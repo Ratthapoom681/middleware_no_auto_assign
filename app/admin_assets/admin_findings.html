@@ -71,6 +71,17 @@
           </div>
           <div class="editor-list" id="findingStatusRulesEditor"></div>
         </div>
+
+        <div class="editor-group">
+          <div class="editor-head">
+            <div>
+              <h4>Finding Group Rules</h4>
+              <p>Group bursts of related findings when many unique source IPs hit the same destination and title within a rolling window. The middleware uses DefectDojo finding groups through <code>vuln_id_from_tool</code> automatically when a rule fires.</p>
+            </div>
+            <button class="ghost" type="button" id="addFindingGroupRuleBtn">Add Group Rule</button>
+          </div>
+          <div class="editor-list" id="findingGroupRulesEditor"></div>
+        </div>
       </div>
     </section>
   </div>

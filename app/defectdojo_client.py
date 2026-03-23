@@ -1,6 +1,7 @@
 import httpx
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from tenacity import retry, wait_exponential, stop_after_attempt
 from typing import Optional, Dict, Any
@@ -191,9 +192,13 @@ class DefectDojoClient:
             raise ValueError(f"Unsupported DefectDojo object type: {object_type}")
         return creators[object_type]()
 
-    def ensure_context(self, category: str = "General Monitoring") -> Dict[str, int]:
+    def ensure_context(
+        self,
+        category: str = "General Monitoring",
+        finding_group_mode: Optional[str] = None,
+    ) -> Dict[str, int]:
         """Ensures a default Product, Engagement, and category-specific Test exist."""
-        cache_key = f"context:{category}"
+        cache_key = f"context:{category}:{finding_group_mode or 'none'}"
         if cache_key in self.context_cache:
             return self.context_cache[cache_key]
 
@@ -235,17 +240,40 @@ class DefectDojoClient:
         # 4. Test
         test_title = f"{test_cfg.title_prefix} - {category}"
         test_res = self._request("GET", f"tests/?engagement={eng_id}&title={quote(test_title)}")
-        test_id = test_res["results"][0]["id"] if test_res["count"] > 0 else self._request(
-            "POST",
-            "tests/",
-            json={
-                "title": test_title,
-                "engagement": eng_id,
-                "test_type": test_cfg.test_type_id,
-                "target_start": test_cfg.target_start,
-                "target_end": test_cfg.target_end,
-            },
-        )["id"]
+        desired_test_payload = {
+            "title": test_title,
+            "engagement": eng_id,
+            "test_type": test_cfg.test_type_id,
+            "target_start": test_cfg.target_start,
+            "target_end": test_cfg.target_end,
+        }
+        if finding_group_mode:
+            desired_test_payload["group_by"] = finding_group_mode
+            desired_test_payload["create_finding_groups_for_all_findings"] = False
+
+        if test_res["count"] > 0:
+            existing_test = test_res["results"][0]
+            test_id = existing_test["id"]
+            patch_payload = {}
+            if finding_group_mode and existing_test.get("group_by") != finding_group_mode:
+                patch_payload["group_by"] = finding_group_mode
+                patch_payload["create_finding_groups_for_all_findings"] = False
+            if patch_payload:
+                try:
+                    self._request("PATCH", f"tests/{test_id}/", json=patch_payload)
+                    logger.info(
+                        "Updated DefectDojo test %s to use finding groups via %s",
+                        test_id,
+                        finding_group_mode,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to update DefectDojo test %s with finding group settings: %s",
+                        test_id,
+                        exc,
+                    )
+        else:
+            test_id = self._request("POST", "tests/", json=desired_test_payload)["id"]
 
         context = {
             "product_type_id": pt_id,
@@ -460,6 +488,96 @@ class DefectDojoClient:
         if self.dedup_settings.network_match_mode == "all":
             return all(matches)
         return any(matches)
+
+    def _parse_datetime(self, value: Any) -> Optional[datetime]:
+        if not value or not isinstance(value, str):
+            return None
+
+        normalized = value.strip()
+        if normalized.endswith("Z"):
+            normalized = normalized[:-1] + "+00:00"
+
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError:
+            return None
+
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+
+    def _extract_tag_value(self, values: Any, field_name: str) -> Optional[str]:
+        for value in self._extract_tag_names(values):
+            prefix = f"{field_name}:"
+            if value.startswith(prefix):
+                normalized_value = value[len(prefix):].strip()
+                if normalized_value:
+                    return normalized_value
+        return None
+
+    def apply_group_key_to_recent_findings(
+        self,
+        test_id: int,
+        title: str,
+        dst_ip: str,
+        group_key: str,
+        window_minutes: int,
+        anchor_time: Optional[datetime] = None,
+    ) -> int:
+        if not group_key:
+            return 0
+
+        endpoint = f"findings/?test={test_id}"
+        if title:
+            endpoint += f"&title={quote(title)}"
+
+        search = self._request("GET", endpoint)
+        if not search or search.get("count", 0) == 0:
+            return 0
+
+        anchor = anchor_time or datetime.now(timezone.utc)
+        cutoff = anchor - timedelta(minutes=window_minutes)
+        updated_count = 0
+
+        for candidate in search.get("results", []):
+            if candidate.get("is_mitigated") is True or candidate.get("active") is False:
+                continue
+
+            candidate_dst_ip = self._extract_tag_value(candidate.get("tags", []), "dst_ip")
+            if dst_ip and candidate_dst_ip != dst_ip:
+                continue
+
+            created_at = self._parse_datetime(candidate.get("created"))
+            if created_at and created_at < cutoff:
+                continue
+
+            if candidate.get("vuln_id_from_tool") == group_key:
+                continue
+
+            finding_id = candidate.get("id")
+            if not finding_id:
+                continue
+
+            try:
+                self._request("PATCH", f"findings/{finding_id}/", json={"vuln_id_from_tool": group_key})
+                updated_count += 1
+            except Exception as exc:
+                logger.warning(
+                    "Failed to apply finding group key %s to finding %s: %s",
+                    group_key,
+                    finding_id,
+                    exc,
+                )
+
+        if updated_count:
+            logger.info(
+                "Applied finding group key %s to %s recent findings for title '%s' and dst_ip %s",
+                group_key,
+                updated_count,
+                title or "*",
+                dst_ip or "n/a",
+            )
+        return updated_count
 
     def push_finding(
         self,

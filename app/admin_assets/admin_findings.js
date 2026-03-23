@@ -7,7 +7,9 @@ const els = {
   dedupSettingsEditor: document.getElementById("dedupSettingsEditor"),
   findingDefaultsEditor: document.getElementById("findingDefaultsEditor"),
   findingStatusRulesEditor: document.getElementById("findingStatusRulesEditor"),
+  findingGroupRulesEditor: document.getElementById("findingGroupRulesEditor"),
   addFindingStatusRuleBtn: document.getElementById("addFindingStatusRuleBtn"),
+  addFindingGroupRuleBtn: document.getElementById("addFindingGroupRuleBtn"),
 };
 
 const DEDUP_PRESETS = {
@@ -591,6 +593,67 @@ function renderFindingStatusRuleEditors() {
   `).join("");
 }
 
+function renderFindingGroupRuleEditors() {
+  const rules = state.config?.finding_group_rules || [];
+
+  if (!rules.length) {
+    els.findingGroupRulesEditor.innerHTML = '<div class="helper">No finding group rules yet. Add one when you want low-severity bursts with many unique source IPs to appear in a DefectDojo finding group.</div>';
+    return;
+  }
+
+  els.findingGroupRulesEditor.innerHTML = rules.map((rule, index) => `
+    <div class="editor-card">
+      <div class="editor-card-header">
+        <span class="editor-card-title">Group Rule ${index + 1}</span>
+        <button class="ghost remove-finding-group-rule-btn" type="button" data-index="${index}">Remove</button>
+      </div>
+      <div class="editor-grid">
+        <label class="field">
+          <span>Rule Name</span>
+          <input class="finding-group-name" type="text" value="${escapeAttr(rule.name || "")}" placeholder="Low severity DNS burst" />
+        </label>
+        <label class="field">
+          <span>Enabled</span>
+          <select class="finding-group-enabled">
+            <option value="true" ${rule.enabled !== false ? "selected" : ""}>True</option>
+            <option value="false" ${rule.enabled === false ? "selected" : ""}>False</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Match Rule Groups</span>
+          <input class="finding-group-match-groups" type="text" value="${escapeAttr(joinCommaList(rule.match_rule_groups || []))}" placeholder="fortigate, anomaly" />
+        </label>
+        <label class="field">
+          <span>Severity Values</span>
+          <input class="finding-group-severity-values" type="text" value="${escapeAttr(joinCommaList(rule.severity_values || []))}" placeholder="Low, Informational" />
+        </label>
+        <label class="field">
+          <span>Unique Source IP Threshold</span>
+          <input class="finding-group-unique-src-threshold" type="number" min="1" value="${escapeAttr(rule.unique_src_ip_threshold ?? 10)}" placeholder="10" />
+        </label>
+        <label class="field">
+          <span>Window Minutes</span>
+          <input class="finding-group-window-minutes" type="number" min="1" value="${escapeAttr(rule.window_minutes ?? 60)}" placeholder="60" />
+        </label>
+        <label class="field">
+          <span>Require Same Title</span>
+          <select class="finding-group-require-same-title">
+            <option value="true" ${rule.require_same_title !== false ? "selected" : ""}>True</option>
+            <option value="false" ${rule.require_same_title === false ? "selected" : ""}>False</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Require Same Destination IP</span>
+          <select class="finding-group-require-same-dst-ip">
+            <option value="true" ${rule.require_same_dst_ip !== false ? "selected" : ""}>True</option>
+            <option value="false" ${rule.require_same_dst_ip === false ? "selected" : ""}>False</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  `).join("");
+}
+
 function collectDedupSettings() {
   const currentSettings = getDedupSettings();
   const enabled = !!els.dedupSettingsEditor.querySelector(".dedup-enabled")?.checked;
@@ -650,6 +713,19 @@ function collectFindingStatusRules() {
   })).filter((rule) => rule.name);
 }
 
+function collectFindingGroupRules() {
+  return Array.from(els.findingGroupRulesEditor.querySelectorAll(".editor-card")).map((card) => ({
+    name: card.querySelector(".finding-group-name")?.value.trim() || "",
+    enabled: parseOptionalBool(card.querySelector(".finding-group-enabled")?.value) !== false,
+    match_rule_groups: splitCommaList(card.querySelector(".finding-group-match-groups")?.value),
+    severity_values: splitCommaList(card.querySelector(".finding-group-severity-values")?.value),
+    unique_src_ip_threshold: parseOptionalInt(card.querySelector(".finding-group-unique-src-threshold")?.value) ?? 10,
+    window_minutes: parseOptionalInt(card.querySelector(".finding-group-window-minutes")?.value) ?? 60,
+    require_same_title: parseOptionalBool(card.querySelector(".finding-group-require-same-title")?.value) !== false,
+    require_same_dst_ip: parseOptionalBool(card.querySelector(".finding-group-require-same-dst-ip")?.value) !== false,
+  })).filter((rule) => rule.name);
+}
+
 function addFindingStatusRule() {
   state.config.finding_status_rules = state.config.finding_status_rules || [];
   state.config.finding_status_rules.push({
@@ -665,6 +741,21 @@ function addFindingStatusRule() {
     set_under_review: null,
   });
   renderFindingStatusRuleEditors();
+}
+
+function addFindingGroupRule() {
+  state.config.finding_group_rules = state.config.finding_group_rules || [];
+  state.config.finding_group_rules.push({
+    name: "",
+    enabled: true,
+    match_rule_groups: [],
+    severity_values: ["Low"],
+    unique_src_ip_threshold: 10,
+    window_minutes: 60,
+    require_same_title: true,
+    require_same_dst_ip: true,
+  });
+  renderFindingGroupRuleEditors();
 }
 
 function applyDedupPreset(presetName) {
@@ -685,6 +776,13 @@ function handleEditorClick(event) {
   if (removeFindingStatusRule) {
     state.config.finding_status_rules.splice(Number(removeFindingStatusRule.dataset.index), 1);
     renderFindingStatusRuleEditors();
+    return;
+  }
+
+  const removeFindingGroupRule = event.target.closest(".remove-finding-group-rule-btn");
+  if (removeFindingGroupRule) {
+    state.config.finding_group_rules.splice(Number(removeFindingGroupRule.dataset.index), 1);
+    renderFindingGroupRuleEditors();
   }
 }
 
@@ -710,6 +808,7 @@ async function loadAll() {
     renderDedupSettingsEditor();
     renderFindingDefaultsEditor();
     renderFindingStatusRuleEditors();
+    renderFindingGroupRuleEditors();
     setStatus("Finding behavior config loaded.");
   } catch (error) {
     setStatus(`Failed to load finding behavior config: ${error}`, true);
@@ -724,6 +823,7 @@ async function saveConfig() {
       dedup_settings: collectDedupSettings(),
       finding_defaults: collectFindingDefaults(),
       finding_status_rules: collectFindingStatusRules(),
+      finding_group_rules: collectFindingGroupRules(),
     };
     await fetchJson("/admin/api/config", {
       method: "POST",
@@ -740,8 +840,10 @@ async function saveConfig() {
 els.reloadBtn.addEventListener("click", loadAll);
 els.saveBtn.addEventListener("click", saveConfig);
 els.addFindingStatusRuleBtn.addEventListener("click", addFindingStatusRule);
+els.addFindingGroupRuleBtn.addEventListener("click", addFindingGroupRule);
 els.dedupSettingsEditor.addEventListener("click", handleEditorClick);
 els.dedupSettingsEditor.addEventListener("change", handleDedupChange);
 els.findingStatusRulesEditor.addEventListener("click", handleEditorClick);
+els.findingGroupRulesEditor.addEventListener("click", handleEditorClick);
 
 loadAll();

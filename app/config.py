@@ -44,6 +44,41 @@ class FindingStatusRule(BaseModel):
         return self
 
 
+class FindingGroupRule(BaseModel):
+    name: str
+    enabled: bool = True
+    match_rule_groups: List[str] = []
+    severity_values: List[str] = ["Low"]
+    unique_src_ip_threshold: int = 10
+    window_minutes: int = 60
+    require_same_title: bool = True
+    require_same_dst_ip: bool = True
+
+    @model_validator(mode="after")
+    def validate_group_rule(self):
+        normalized_values: list[str] = []
+        for value in self.severity_values:
+            normalized = str(value).strip().lower()
+            mapping = {
+                "informational": "Informational",
+                "info": "Informational",
+                "low": "Low",
+                "medium": "Medium",
+                "high": "High",
+                "critical": "Critical",
+            }
+            if normalized not in mapping:
+                raise ValueError(f"Unsupported severity value '{value}' in finding group rule '{self.name}'")
+            normalized_values.append(mapping[normalized])
+        self.severity_values = normalized_values
+
+        if self.unique_src_ip_threshold < 1:
+            raise ValueError("unique_src_ip_threshold must be at least 1")
+        if self.window_minutes < 1:
+            raise ValueError("window_minutes must be at least 1")
+        return self
+
+
 class DedupSettings(BaseModel):
     enabled: bool = True
     use_unique_id: bool = True
@@ -99,6 +134,7 @@ class AppConfig(BaseModel):
     routing_rules: List[RoutingRule]
     tag_rules: List[TagRule] = []
     finding_status_rules: List[FindingStatusRule] = []
+    finding_group_rules: List[FindingGroupRule] = []
     default_owner_group: str
 
 def load_config(path: str = "config.yaml") -> AppConfig:

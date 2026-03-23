@@ -83,4 +83,6 @@ tag_rules:
 
 finding_status_rules: []
 
+finding_group_rules: []
+
 default_owner_group: "SecOps"
