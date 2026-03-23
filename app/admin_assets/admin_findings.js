@@ -159,18 +159,23 @@ function renderDedupSettingsEditor() {
   const selectedNetworkFields = new Set(settings.network_match_fields || []);
 
   els.dedupSettingsEditor.innerHTML = `
-    <div class="editor-card">
-      <div class="editor-card-header">
-        <span class="editor-card-title">Dedup Matching</span>
+    <div class="editor-card dedup-shell">
+      <div class="dedup-topline">
+        <div>
+          <span class="editor-card-title">Dedup Matching</span>
+          <p class="dedup-kicker">Choose how the middleware decides whether an alert should reuse an existing finding or create a new one.</p>
+        </div>
         <span class="pill">${escapeAttr(activePreset === "custom" ? "Custom policy" : `${activePreset} preset`)}</span>
       </div>
-      <div class="preset-bar">
+
+      <div class="preset-bar dedup-preset-bar">
         <button class="ghost preset-btn ${activePreset === "balanced" ? "active" : ""}" type="button" data-dedup-preset="balanced">Balanced</button>
         <button class="ghost preset-btn ${activePreset === "strict" ? "active" : ""}" type="button" data-dedup-preset="strict">Strict</button>
         <button class="ghost preset-btn ${activePreset === "loose" ? "active" : ""}" type="button" data-dedup-preset="loose">Loose</button>
         <button class="ghost preset-btn ${activePreset === "off" ? "active" : ""}" type="button" data-dedup-preset="off">Off</button>
       </div>
-      <div class="dedup-summary">
+
+      <div class="dedup-summary dedup-summary-hero">
         <p class="dedup-summary-title">${escapeAttr(description.headline)}</p>
         <div class="pills">
           <span class="pill">${escapeAttr(settings.action_on_match === "skip" ? "Skip duplicate create" : "Allow create on match")}</span>
@@ -180,9 +185,13 @@ function renderDedupSettingsEditor() {
           ${description.details.map((detail) => `<p>${escapeAttr(detail)}</p>`).join("")}
         </div>
       </div>
-      <div class="dedup-grid">
-        <section class="choice-card">
-          <h5>Core Behavior</h5>
+
+      <div class="dedup-sections">
+        <section class="choice-card dedup-section">
+          <div class="dedup-section-head">
+            <h5>Core Behavior</h5>
+            <p>Decide whether dedup is on and what happens when a match is found.</p>
+          </div>
           <label class="toggle-row">
             <input class="dedup-enabled" type="checkbox" ${settings.enabled ? "checked" : ""} />
             <span>
@@ -206,8 +215,11 @@ function renderDedupSettingsEditor() {
           </label>
         </section>
 
-        <section class="choice-card">
-          <h5>Primary Match Sources</h5>
+        <section class="choice-card dedup-section">
+          <div class="dedup-section-head">
+            <h5>Primary Match Sources</h5>
+            <p>Pick the main signals used to start duplicate matching.</p>
+          </div>
           <label class="toggle-row">
             <input class="dedup-use-unique-id" type="checkbox" ${settings.use_unique_id ? "checked" : ""} ${!settings.enabled ? "disabled" : ""} />
             <span>
@@ -224,9 +236,11 @@ function renderDedupSettingsEditor() {
           </label>
         </section>
 
-        <section class="choice-card ${fallbackEnabled ? "" : "muted-card"}">
-          <h5>Extra Match Guards</h5>
-          <p class="helper">These narrow the title/test fallback so it does not merge findings too aggressively.</p>
+        <section class="choice-card dedup-section ${fallbackEnabled ? "" : "muted-card"}">
+          <div class="dedup-section-head">
+            <h5>Context Guards</h5>
+            <p>These narrow title/test fallback so different assets or weaknesses stay separate.</p>
+          </div>
           <label class="toggle-row">
             <input class="dedup-require-same-endpoint" type="checkbox" ${settings.require_same_endpoint ? "checked" : ""} ${!fallbackEnabled ? "disabled" : ""} />
             <span>
@@ -241,6 +255,13 @@ function renderDedupSettingsEditor() {
               <small>Only match if the weakness classification is the same.</small>
             </span>
           </label>
+        </section>
+
+        <section class="choice-card dedup-section ${fallbackEnabled ? "" : "muted-card"}">
+          <div class="dedup-section-head">
+            <h5>Network Matching</h5>
+            <p>Use IP identity when you want alerts to dedup by network pair, not just by title.</p>
+          </div>
           <label class="toggle-row">
             <input class="dedup-require-network-match" type="checkbox" ${settings.require_network_match ? "checked" : ""} ${!fallbackEnabled ? "disabled" : ""} />
             <span>
@@ -248,35 +269,29 @@ function renderDedupSettingsEditor() {
               <small>Use selected IP fields like source and destination when deciding whether two findings are duplicates.</small>
             </span>
           </label>
-          <label class="field">
-            <span>Network field match mode</span>
-            <select class="dedup-network-match-mode" ${!networkEnabled ? "disabled" : ""}>
-              <option value="any" ${settings.network_match_mode === "any" ? "selected" : ""}>Any selected field can match</option>
-              <option value="all" ${settings.network_match_mode === "all" ? "selected" : ""}>All selected fields must match</option>
-            </select>
-          </label>
-          <div class="choice-stack">
-            <label class="toggle-row">
-              <input class="dedup-network-field" type="checkbox" value="src_ip" ${selectedNetworkFields.has("src_ip") ? "checked" : ""} ${!networkEnabled ? "disabled" : ""} />
-              <span>
-                <strong>Source IP</strong>
-                <small>Use the src_ip tag from the finding.</small>
-              </span>
+          <div class="dedup-network-controls ${networkEnabled ? "" : "muted-card"}">
+            <label class="field">
+              <span>Network field match mode</span>
+              <select class="dedup-network-match-mode" ${!networkEnabled ? "disabled" : ""}>
+                <option value="any" ${settings.network_match_mode === "any" ? "selected" : ""}>Any selected field can match</option>
+                <option value="all" ${settings.network_match_mode === "all" ? "selected" : ""}>All selected fields must match</option>
+              </select>
             </label>
-            <label class="toggle-row">
-              <input class="dedup-network-field" type="checkbox" value="dst_ip" ${selectedNetworkFields.has("dst_ip") ? "checked" : ""} ${!networkEnabled ? "disabled" : ""} />
-              <span>
-                <strong>Destination IP</strong>
-                <small>Use the dst_ip tag from the finding.</small>
-              </span>
-            </label>
-            <label class="toggle-row">
-              <input class="dedup-network-field" type="checkbox" value="observed_ip" ${selectedNetworkFields.has("observed_ip") ? "checked" : ""} ${!networkEnabled ? "disabled" : ""} />
-              <span>
-                <strong>Observed IP</strong>
-                <small>Use the generic observed IP tag when the alert does not separate source and destination cleanly.</small>
-              </span>
-            </label>
+            <div class="network-pill-grid">
+              <label class="network-pill ${selectedNetworkFields.has("src_ip") ? "active" : ""}">
+                <input class="dedup-network-field" type="checkbox" value="src_ip" ${selectedNetworkFields.has("src_ip") ? "checked" : ""} ${!networkEnabled ? "disabled" : ""} />
+                <span>Source IP</span>
+              </label>
+              <label class="network-pill ${selectedNetworkFields.has("dst_ip") ? "active" : ""}">
+                <input class="dedup-network-field" type="checkbox" value="dst_ip" ${selectedNetworkFields.has("dst_ip") ? "checked" : ""} ${!networkEnabled ? "disabled" : ""} />
+                <span>Destination IP</span>
+              </label>
+              <label class="network-pill ${selectedNetworkFields.has("observed_ip") ? "active" : ""}">
+                <input class="dedup-network-field" type="checkbox" value="observed_ip" ${selectedNetworkFields.has("observed_ip") ? "checked" : ""} ${!networkEnabled ? "disabled" : ""} />
+                <span>Observed IP</span>
+              </label>
+            </div>
+            <div class="helper">Example: choose <code>All selected fields must match</code> with <code>Source IP</code> and <code>Destination IP</code> to create a new finding when only one IP changes.</div>
           </div>
         </section>
       </div>

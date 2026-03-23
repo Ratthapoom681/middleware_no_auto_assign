@@ -68,6 +68,40 @@
       </div>
     </section>
 
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="section-label">Queue Health</p>
+          <h2 class="panel-title">Alert Processing Queue</h2>
+          <p class="panel-lede">Incoming alerts are accepted quickly, then processed from the queue in the background so DefectDojo slowdowns do not freeze the middleware.</p>
+        </div>
+        <div class="hero-actions">
+          <button class="ghost" id="refreshQueueBtn" type="button">Refresh Queue</button>
+        </div>
+      </div>
+      <div class="status" id="queueStatus"></div>
+      <div class="queue-grid" id="queueSummary">
+        <article class="queue-card">
+          <p class="queue-label">Pending</p>
+          <p class="queue-value">0</p>
+        </article>
+        <article class="queue-card">
+          <p class="queue-label">Ready</p>
+          <p class="queue-value">0</p>
+        </article>
+        <article class="queue-card">
+          <p class="queue-label">Processing</p>
+          <p class="queue-value">0</p>
+        </article>
+        <article class="queue-card">
+          <p class="queue-label">Failed</p>
+          <p class="queue-value">0</p>
+        </article>
+      </div>
+      <div class="queue-meta" id="queueMeta"></div>
+      <div class="log-list" id="queueFailures"></div>
+    </section>
+
     <section class="panel log-panel">
       <div class="panel-head">
         <div>

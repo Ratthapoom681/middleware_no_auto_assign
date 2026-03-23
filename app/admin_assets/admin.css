@@ -486,6 +486,46 @@ button:focus-visible {
   gap: 20px;
 }
 
+.queue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+}
+
+.queue-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-sm);
+}
+
+.queue-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.queue-value {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.95rem;
+  font-weight: 760;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.queue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .dashboard-card {
   position: relative;
   display: grid;
@@ -770,6 +810,31 @@ button:focus-visible {
   gap: 10px;
 }
 
+.dedup-shell {
+  gap: 18px;
+}
+
+.dedup-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dedup-kicker {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.dedup-preset-bar {
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
 .preset-btn.active {
   border-color: rgba(15, 118, 110, 0.3);
   background: linear-gradient(180deg, rgba(15, 118, 110, 0.16), rgba(15, 118, 110, 0.08));
@@ -809,6 +874,11 @@ button:focus-visible {
   gap: 14px;
 }
 
+.dedup-sections {
+  display: grid;
+  gap: 14px;
+}
+
 .choice-card {
   display: grid;
   gap: 12px;
@@ -823,9 +893,68 @@ button:focus-visible {
   font-size: 0.98rem;
 }
 
+.dedup-section {
+  gap: 14px;
+}
+
+.dedup-section-head {
+  display: grid;
+  gap: 4px;
+}
+
+.dedup-section-head p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .choice-stack {
   display: grid;
   gap: 10px;
+}
+
+.dedup-network-controls {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.network-pill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.network-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--muted-strong);
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.network-pill input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border-radius: 5px;
+  transform: none;
+  box-shadow: none;
+}
+
+.network-pill.active {
+  border-color: rgba(15, 118, 110, 0.24);
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.14), rgba(15, 118, 110, 0.06));
+  color: var(--brand-strong);
 }
 
 .muted-card {
@@ -1043,7 +1172,8 @@ button:focus-visible {
 
   .wizard-actions,
   .editor-head,
-  .editor-card-header {
+  .editor-card-header,
+  .dedup-topline {
     flex-direction: column;
     align-items: stretch;
   }

@@ -4,6 +4,7 @@ from typing import Any, Callable
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
+from .alert_queue import get_queue_snapshot
 from .config import AppConfig, save_config
 from .log_stream import get_log_entries
 
@@ -132,3 +133,8 @@ async def admin_create_dojo_object(object_type: str, request: Request):
 @router.get("/admin/api/logs")
 async def admin_logs():
     return JSONResponse({"entries": get_log_entries()})
+
+
+@router.get("/admin/api/queue")
+async def admin_queue():
+    return JSONResponse(get_queue_snapshot())

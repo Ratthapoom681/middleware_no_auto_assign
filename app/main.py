@@ -1,6 +1,7 @@
 import logging
 import re
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request
+from .alert_queue import AlertQueueWorker, PermanentAlertProcessingError
 from .assignment import get_assigned_user, get_next_user, init_db, remember_assignment
 from .admin_ui import configure_admin, router as admin_router
 from .config import AppConfig, load_config, DOJO_URL, DOJO_API_KEY
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="Wazuh to DefectDojo Integrator")
 config = load_config()
 dd_client = DefectDojoClient(DOJO_URL, DOJO_API_KEY, config.defectdojo, config.dedup_settings)
+alert_queue = AlertQueueWorker(lambda payload: process_alert(payload))
 DEFAULT_FOUND_BY_TEST_TYPE_ID = 1
 
 
@@ -211,15 +213,22 @@ def select_reviewer(owner_group: str, group_config, dedup_key: str) -> tuple[dic
 @app.on_event("startup")
 def startup_event():
     init_db()
-    logger.info("Service started. Reviewer auto-assignment is enabled only for findings marked under review.")
+    alert_queue.start()
+    logger.info(
+        "Service started. Reviewer auto-assignment is enabled only for findings marked under review, and alerts are processed through the durable queue."
+    )
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    alert_queue.stop()
 
 def process_alert(raw_payload: dict):
     # 1. Parse Alert
     try:
         alert = WazuhAlert(**raw_payload, raw_payload=raw_payload)
     except Exception as e:
-        logger.error(f"Failed to parse alert: {e}")
-        return
+        raise PermanentAlertProcessingError(f"Failed to parse alert: {e}") from e
 
     try:
         # 2. Routing
@@ -332,10 +341,15 @@ def process_alert(raw_payload: dict):
             )
     except Exception as e:
         logger.exception("Failed to process alert %s with DefectDojo: %s", raw_payload.get("id"), e)
+        raise
 
 @app.post("/webhook")
-async def wazuh_webhook(request: Request, background_tasks: BackgroundTasks):
+async def wazuh_webhook(request: Request):
     payload = await request.json()
-    # Execute synchronously in background to release webhook instantly
-    background_tasks.add_task(process_alert, payload)
-    return {"status": "accepted"}
+    try:
+        job_id = alert_queue.enqueue(payload)
+    except Exception as exc:
+        logger.exception("Failed to enqueue alert %s: %s", payload.get("id"), exc)
+        raise HTTPException(status_code=503, detail="Failed to enqueue alert for background processing.") from exc
+
+    return {"status": "accepted", "queue_id": job_id}
