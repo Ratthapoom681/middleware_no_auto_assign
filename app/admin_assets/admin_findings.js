@@ -10,6 +10,49 @@ const els = {
   addFindingStatusRuleBtn: document.getElementById("addFindingStatusRuleBtn"),
 };
 
+const DEDUP_PRESETS = {
+  balanced: {
+    enabled: true,
+    use_unique_id: true,
+    use_title_test_fallback: true,
+    require_same_endpoint: true,
+    require_same_cwe: true,
+    require_network_match: true,
+    ignore_mitigated: true,
+    action_on_match: "skip",
+  },
+  strict: {
+    enabled: true,
+    use_unique_id: true,
+    use_title_test_fallback: false,
+    require_same_endpoint: false,
+    require_same_cwe: false,
+    require_network_match: false,
+    ignore_mitigated: true,
+    action_on_match: "skip",
+  },
+  loose: {
+    enabled: true,
+    use_unique_id: true,
+    use_title_test_fallback: true,
+    require_same_endpoint: false,
+    require_same_cwe: false,
+    require_network_match: false,
+    ignore_mitigated: true,
+    action_on_match: "skip",
+  },
+  off: {
+    enabled: false,
+    use_unique_id: false,
+    use_title_test_fallback: false,
+    require_same_endpoint: false,
+    require_same_cwe: false,
+    require_network_match: false,
+    ignore_mitigated: true,
+    action_on_match: "create_new",
+  },
+};
+
 function escapeAttr(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -47,64 +90,152 @@ function joinCommaList(values) {
   return (values || []).join(", ");
 }
 
-function renderDedupSettingsEditor() {
-  const settings = state.config?.dedup_settings || {
-    enabled: true,
-    use_unique_id: true,
-    use_title_test_fallback: true,
-    require_same_endpoint: true,
-    require_same_cwe: true,
-    require_network_match: true,
-    ignore_mitigated: true,
-    action_on_match: "skip",
-  };
+function getDedupSettings() {
+  return state.config?.dedup_settings || DEDUP_PRESETS.balanced;
+}
 
-  const boolOptions = (value) => `
-    <option value="true" ${value === true ? "selected" : ""}>True</option>
-    <option value="false" ${value === false ? "selected" : ""}>False</option>
-  `;
+function isPresetMatch(settings, preset) {
+  return Object.entries(preset).every(([key, value]) => settings[key] === value);
+}
+
+function getDedupPresetName(settings) {
+  if (isPresetMatch(settings, DEDUP_PRESETS.off)) return "off";
+  if (isPresetMatch(settings, DEDUP_PRESETS.loose)) return "loose";
+  if (isPresetMatch(settings, DEDUP_PRESETS.strict)) return "strict";
+  if (isPresetMatch(settings, DEDUP_PRESETS.balanced)) return "balanced";
+  return "custom";
+}
+
+function describeDedupSettings(settings) {
+  if (!settings.enabled) {
+    return {
+      headline: "Dedup is disabled",
+      details: [
+        "Every alert is allowed to create a new finding.",
+        "Existing findings are not used to block creation.",
+      ],
+    };
+  }
+
+  const checks = [];
+  if (settings.use_unique_id) checks.push("unique tool dedup key");
+  if (settings.use_title_test_fallback) checks.push("same title inside the same test");
+  if (settings.require_same_endpoint) checks.push("same endpoint");
+  if (settings.require_same_cwe) checks.push("same CWE");
+  if (settings.require_network_match) checks.push("same network tags");
+
+  return {
+    headline: settings.action_on_match === "skip"
+      ? "Duplicates will be skipped"
+      : "Duplicates can still create new findings",
+    details: [
+      checks.length
+        ? `Matching looks at ${checks.join(", ")}.`
+        : "No dedup matching checks are active right now.",
+      settings.ignore_mitigated
+        ? "Mitigated or closed findings are ignored during matching."
+        : "Mitigated or closed findings still count as duplicates.",
+    ],
+  };
+}
+
+function renderDedupSettingsEditor() {
+  const settings = getDedupSettings();
+  const activePreset = getDedupPresetName(settings);
+  const description = describeDedupSettings(settings);
+  const fallbackEnabled = settings.enabled && settings.use_title_test_fallback;
 
   els.dedupSettingsEditor.innerHTML = `
     <div class="editor-card">
       <div class="editor-card-header">
         <span class="editor-card-title">Dedup Matching</span>
+        <span class="pill">${escapeAttr(activePreset === "custom" ? "Custom policy" : `${activePreset} preset`)}</span>
       </div>
-      <div class="editor-grid">
-        <label class="field">
-          <span>Dedup Enabled</span>
-          <select class="dedup-enabled">${boolOptions(settings.enabled)}</select>
-        </label>
-        <label class="field">
-          <span>Action On Match</span>
-          <select class="dedup-action-on-match">
-            <option value="skip" ${settings.action_on_match === "skip" ? "selected" : ""}>Skip create</option>
-            <option value="create_new" ${settings.action_on_match === "create_new" ? "selected" : ""}>Create new anyway</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Match By Unique ID</span>
-          <select class="dedup-use-unique-id">${boolOptions(settings.use_unique_id)}</select>
-        </label>
-        <label class="field">
-          <span>Use Title/Test Fallback</span>
-          <select class="dedup-use-title-test-fallback">${boolOptions(settings.use_title_test_fallback)}</select>
-        </label>
-        <label class="field">
-          <span>Require Same Endpoint</span>
-          <select class="dedup-require-same-endpoint">${boolOptions(settings.require_same_endpoint)}</select>
-        </label>
-        <label class="field">
-          <span>Require Same CWE</span>
-          <select class="dedup-require-same-cwe">${boolOptions(settings.require_same_cwe)}</select>
-        </label>
-        <label class="field">
-          <span>Require Same Network Match</span>
-          <select class="dedup-require-network-match">${boolOptions(settings.require_network_match)}</select>
-        </label>
-        <label class="field">
-          <span>Ignore Mitigated Findings</span>
-          <select class="dedup-ignore-mitigated">${boolOptions(settings.ignore_mitigated)}</select>
-        </label>
+      <div class="preset-bar">
+        <button class="ghost preset-btn ${activePreset === "balanced" ? "active" : ""}" type="button" data-dedup-preset="balanced">Balanced</button>
+        <button class="ghost preset-btn ${activePreset === "strict" ? "active" : ""}" type="button" data-dedup-preset="strict">Strict</button>
+        <button class="ghost preset-btn ${activePreset === "loose" ? "active" : ""}" type="button" data-dedup-preset="loose">Loose</button>
+        <button class="ghost preset-btn ${activePreset === "off" ? "active" : ""}" type="button" data-dedup-preset="off">Off</button>
+      </div>
+      <div class="dedup-summary">
+        <p class="dedup-summary-title">${escapeAttr(description.headline)}</p>
+        <div class="pills">
+          <span class="pill">${escapeAttr(settings.action_on_match === "skip" ? "Skip duplicate create" : "Allow create on match")}</span>
+          <span class="pill">${escapeAttr(settings.ignore_mitigated ? "Ignore mitigated findings" : "Include mitigated findings")}</span>
+        </div>
+        <div class="dedup-summary-list">
+          ${description.details.map((detail) => `<p>${escapeAttr(detail)}</p>`).join("")}
+        </div>
+      </div>
+      <div class="dedup-grid">
+        <section class="choice-card">
+          <h5>Core Behavior</h5>
+          <label class="toggle-row">
+            <input class="dedup-enabled" type="checkbox" ${settings.enabled ? "checked" : ""} />
+            <span>
+              <strong>Enable dedup</strong>
+              <small>Turn duplicate detection on or off for new alerts.</small>
+            </span>
+          </label>
+          <label class="field">
+            <span>When a duplicate is found</span>
+            <select class="dedup-action-on-match">
+              <option value="skip" ${settings.action_on_match === "skip" ? "selected" : ""}>Skip creating a new finding</option>
+              <option value="create_new" ${settings.action_on_match === "create_new" ? "selected" : ""}>Still create a new finding</option>
+            </select>
+          </label>
+          <label class="toggle-row">
+            <input class="dedup-ignore-mitigated" type="checkbox" ${settings.ignore_mitigated ? "checked" : ""} ${!settings.enabled ? "disabled" : ""} />
+            <span>
+              <strong>Ignore mitigated findings</strong>
+              <small>Only open findings count as duplicates.</small>
+            </span>
+          </label>
+        </section>
+
+        <section class="choice-card">
+          <h5>Primary Match Sources</h5>
+          <label class="toggle-row">
+            <input class="dedup-use-unique-id" type="checkbox" ${settings.use_unique_id ? "checked" : ""} ${!settings.enabled ? "disabled" : ""} />
+            <span>
+              <strong>Unique tool dedup key</strong>
+              <small>Use the generated Wazuh dedup key first. Best when the same alert keeps repeating.</small>
+            </span>
+          </label>
+          <label class="toggle-row">
+            <input class="dedup-use-title-test-fallback" type="checkbox" ${settings.use_title_test_fallback ? "checked" : ""} ${!settings.enabled ? "disabled" : ""} />
+            <span>
+              <strong>Title and test fallback</strong>
+              <small>If the unique key does not match, also compare findings with the same title in the same DefectDojo test.</small>
+            </span>
+          </label>
+        </section>
+
+        <section class="choice-card ${fallbackEnabled ? "" : "muted-card"}">
+          <h5>Extra Match Guards</h5>
+          <p class="helper">These narrow the title/test fallback so it does not merge findings too aggressively.</p>
+          <label class="toggle-row">
+            <input class="dedup-require-same-endpoint" type="checkbox" ${settings.require_same_endpoint ? "checked" : ""} ${!fallbackEnabled ? "disabled" : ""} />
+            <span>
+              <strong>Require same endpoint</strong>
+              <small>Only match if the finding is attached to the same host or endpoint.</small>
+            </span>
+          </label>
+          <label class="toggle-row">
+            <input class="dedup-require-same-cwe" type="checkbox" ${settings.require_same_cwe ? "checked" : ""} ${!fallbackEnabled ? "disabled" : ""} />
+            <span>
+              <strong>Require same CWE</strong>
+              <small>Only match if the weakness classification is the same.</small>
+            </span>
+          </label>
+          <label class="toggle-row">
+            <input class="dedup-require-network-match" type="checkbox" ${settings.require_network_match ? "checked" : ""} ${!fallbackEnabled ? "disabled" : ""} />
+            <span>
+              <strong>Require same network tags</strong>
+              <small>Only match if source or destination IP-related tags line up.</small>
+            </span>
+          </label>
+        </section>
       </div>
     </div>
   `;
@@ -243,14 +374,17 @@ function renderFindingStatusRuleEditors() {
 }
 
 function collectDedupSettings() {
+  const enabled = !!els.dedupSettingsEditor.querySelector(".dedup-enabled")?.checked;
+  const useTitleFallback = enabled && !!els.dedupSettingsEditor.querySelector(".dedup-use-title-test-fallback")?.checked;
+
   return {
-    enabled: parseOptionalBool(els.dedupSettingsEditor.querySelector(".dedup-enabled")?.value) ?? true,
-    use_unique_id: parseOptionalBool(els.dedupSettingsEditor.querySelector(".dedup-use-unique-id")?.value) ?? true,
-    use_title_test_fallback: parseOptionalBool(els.dedupSettingsEditor.querySelector(".dedup-use-title-test-fallback")?.value) ?? true,
-    require_same_endpoint: parseOptionalBool(els.dedupSettingsEditor.querySelector(".dedup-require-same-endpoint")?.value) ?? true,
-    require_same_cwe: parseOptionalBool(els.dedupSettingsEditor.querySelector(".dedup-require-same-cwe")?.value) ?? true,
-    require_network_match: parseOptionalBool(els.dedupSettingsEditor.querySelector(".dedup-require-network-match")?.value) ?? true,
-    ignore_mitigated: parseOptionalBool(els.dedupSettingsEditor.querySelector(".dedup-ignore-mitigated")?.value) ?? true,
+    enabled,
+    use_unique_id: enabled && !!els.dedupSettingsEditor.querySelector(".dedup-use-unique-id")?.checked,
+    use_title_test_fallback: useTitleFallback,
+    require_same_endpoint: useTitleFallback && !!els.dedupSettingsEditor.querySelector(".dedup-require-same-endpoint")?.checked,
+    require_same_cwe: useTitleFallback && !!els.dedupSettingsEditor.querySelector(".dedup-require-same-cwe")?.checked,
+    require_network_match: useTitleFallback && !!els.dedupSettingsEditor.querySelector(".dedup-require-network-match")?.checked,
+    ignore_mitigated: enabled && !!els.dedupSettingsEditor.querySelector(".dedup-ignore-mitigated")?.checked,
     action_on_match: els.dedupSettingsEditor.querySelector(".dedup-action-on-match")?.value || "skip",
   };
 }
@@ -298,12 +432,33 @@ function addFindingStatusRule() {
   renderFindingStatusRuleEditors();
 }
 
+function applyDedupPreset(presetName) {
+  const preset = DEDUP_PRESETS[presetName];
+  if (!preset) return;
+  state.config.dedup_settings = { ...preset };
+  renderDedupSettingsEditor();
+}
+
 function handleEditorClick(event) {
+  const presetButton = event.target.closest("[data-dedup-preset]");
+  if (presetButton) {
+    applyDedupPreset(presetButton.dataset.dedupPreset);
+    return;
+  }
+
   const removeFindingStatusRule = event.target.closest(".remove-finding-status-rule-btn");
   if (removeFindingStatusRule) {
     state.config.finding_status_rules.splice(Number(removeFindingStatusRule.dataset.index), 1);
     renderFindingStatusRuleEditors();
   }
+}
+
+function handleDedupChange(event) {
+  if (!event.target.closest(".dedup-grid, .preset-bar")) {
+    return;
+  }
+  state.config.dedup_settings = collectDedupSettings();
+  renderDedupSettingsEditor();
 }
 
 async function fetchJson(url, options = {}) {
@@ -350,6 +505,8 @@ async function saveConfig() {
 els.reloadBtn.addEventListener("click", loadAll);
 els.saveBtn.addEventListener("click", saveConfig);
 els.addFindingStatusRuleBtn.addEventListener("click", addFindingStatusRule);
+els.dedupSettingsEditor.addEventListener("click", handleEditorClick);
+els.dedupSettingsEditor.addEventListener("change", handleDedupChange);
 els.findingStatusRulesEditor.addEventListener("click", handleEditorClick);
 
 loadAll();

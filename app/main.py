@@ -1,6 +1,7 @@
 import logging
 import re
 from fastapi import FastAPI, Request, BackgroundTasks
+from .assignment import get_assigned_user, get_next_user, init_db, remember_assignment
 from .admin_ui import configure_admin, router as admin_router
 from .config import AppConfig, load_config, DOJO_URL, DOJO_API_KEY
 from .matching import build_alert_match_tokens, rule_matches
@@ -163,9 +164,50 @@ def get_endpoint_host(alert: WazuhAlert) -> str | None:
 
     return None
 
+
+def select_reviewer(owner_group: str, group_config, dedup_key: str) -> tuple[dict | None, bool]:
+    if group_config is None:
+        return None, True
+
+    active_usernames: list[str] = []
+    for username in group_config.users:
+        if username and dd_client.is_user_active(username):
+            active_usernames.append(username)
+
+    fallback_user = (group_config.fallback_user or "").strip()
+    if fallback_user and fallback_user not in active_usernames and dd_client.is_user_active(fallback_user):
+        active_usernames.append(fallback_user)
+
+    if not active_usernames:
+        logger.warning(
+            "Finding is under review but owner group '%s' has no active DefectDojo users available for reviewer auto-assignment.",
+            owner_group,
+        )
+        return None, True
+
+    assigned_username = get_assigned_user(dedup_key, active_usernames)
+    if assigned_username is None:
+        assigned_username = get_next_user(owner_group, active_usernames)
+
+    if not assigned_username:
+        return None, True
+
+    reviewer = dd_client.get_user(assigned_username)
+    if reviewer is None or not reviewer.get("id"):
+        logger.warning(
+            "Reviewer auto-assignment selected '%s' for owner group '%s' but DefectDojo user lookup failed.",
+            assigned_username,
+            owner_group,
+        )
+        return None, True
+
+    return reviewer, False
+
+
 @app.on_event("startup")
 def startup_event():
-    logger.info("Service started. Auto-assignment is disabled in this variant.")
+    init_db()
+    logger.info("Service started. Reviewer auto-assignment is enabled only for findings marked under review.")
 
 def process_alert(raw_payload: dict):
     # 1. Parse Alert
@@ -189,14 +231,12 @@ def process_alert(raw_payload: dict):
         dedup_key = generate_dedup_key(alert)
         existing_finding = dd_client.get_finding_by_dedup(dedup_key)
 
+        assignment_error = group_config is None
         if group_config is None:
             logger.warning(
                 "Owner group '%s' is not defined in config.yaml teams. Falling back to unassigned finding.",
                 owner_group,
             )
-            assignment_error = True
-        else:
-            assignment_error = False
 
         # 4. Prepare Finding Payload
         tags = build_tags(alert, owner_group, assignment_error)
@@ -224,6 +264,15 @@ def process_alert(raw_payload: dict):
 
         apply_finding_status_rules(alert, finding_data)
 
+        reviewer = None
+        if finding_data.get("under_review") is True:
+            reviewer, reviewer_assignment_error = select_reviewer(owner_group, group_config, dedup_key)
+            if reviewer is not None:
+                finding_data["reviewers"] = [reviewer["id"]]
+            assignment_error = assignment_error or reviewer_assignment_error
+            tags = build_tags(alert, owner_group, assignment_error)
+            finding_data["tags"] = tags
+
         cwe = extract_cwe(alert)
         if not cwe:
             cve_id = extract_cve(alert)
@@ -232,10 +281,13 @@ def process_alert(raw_payload: dict):
         if cwe:
             finding_data["cwe"] = cwe
 
-        assign_note = (
-            f"Automated Routing: Mapped to group '{owner_group}'. "
-            "Auto-assignment is disabled in this deployment."
-        )
+        assign_note = f"Automated Routing: Mapped to group '{owner_group}'."
+        if reviewer is not None:
+            assign_note += f" Auto-assigned reviewer '{reviewer.get('username')}' because the finding is under review."
+        elif finding_data.get("under_review") is True:
+            assign_note += " Finding is under review, but no reviewer could be auto-assigned."
+        else:
+            assign_note += " Finding is not under review, so no reviewer was auto-assigned."
         endpoint_id = None
         endpoint_host = get_endpoint_host(alert)
         if endpoint_host:
@@ -264,12 +316,15 @@ def process_alert(raw_payload: dict):
                 dedup_key,
             )
         else:
+            if reviewer is not None:
+                remember_assignment(dedup_key, owner_group, reviewer.get("username"))
             logger.info(
-                "Alert for rule %s was sent to DefectDojo as new finding %s (Dedup: %s) for owner group %s with no auto-assigned reviewer",
+                "Alert for rule %s was sent to DefectDojo as new finding %s (Dedup: %s) for owner group %s%s",
                 alert.rule.id,
                 result["finding_id"],
                 dedup_key,
                 owner_group,
+                f" with reviewer {reviewer.get('username')}" if reviewer is not None else " with no auto-assigned reviewer",
             )
     except Exception as e:
         logger.exception("Failed to process alert %s with DefectDojo: %s", raw_payload.get("id"), e)

@@ -744,6 +744,104 @@ button:focus-visible {
   border-color: rgba(15, 118, 110, 0.18);
 }
 
+.preset-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.preset-btn.active {
+  border-color: rgba(15, 118, 110, 0.3);
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.16), rgba(15, 118, 110, 0.08));
+  color: var(--brand-strong);
+}
+
+.dedup-summary {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.08), rgba(255, 255, 255, 0.72));
+}
+
+.dedup-summary-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.dedup-summary-list {
+  display: grid;
+  gap: 6px;
+}
+
+.dedup-summary-list p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.6;
+}
+
+.dedup-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.choice-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(117, 94, 64, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.choice-card h5 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.muted-card {
+  opacity: 0.68;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(117, 94, 64, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.toggle-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  padding: 0;
+  border-radius: 6px;
+  transform: none;
+  box-shadow: none;
+}
+
+.toggle-row span {
+  display: grid;
+  gap: 4px;
+}
+
+.toggle-row strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.toggle-row small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .editor-card-title {
   color: var(--muted);
   font-size: 13px;
@@ -908,6 +1006,7 @@ button:focus-visible {
   .create-fields,
   .wizard-steps,
   .editor-grid,
+  .dedup-grid,
   .test-detail-grid,
   .member-grid {
     grid-template-columns: 1fr;
