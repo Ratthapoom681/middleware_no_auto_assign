@@ -6,12 +6,11 @@ from .alert_queue import AlertQueueWorker, PermanentAlertProcessingError
 from .assignment import get_assigned_user, get_next_user, init_db, remember_assignment
 from .admin_ui import configure_admin, router as admin_router
 from .config import AppConfig, load_config, DOJO_URL, DOJO_API_KEY
+from .enrichment import alert_enrichment_service
 from .finding_groups import evaluate_finding_group_rule, init_finding_group_db
 from .matching import build_alert_match_tokens, rule_matches
 from .models import WazuhAlert
 from .wazuh_parser import (
-    extract_cve,
-    extract_cwe,
     generate_dedup_key,
     generate_impact,
     generate_markdown_description,
@@ -20,7 +19,6 @@ from .wazuh_parser import (
     map_severity,
 )
 from .routing import determine_owner_group
-from .cve_lookup import nvd_cwe_lookup
 from .defectdojo_client import DefectDojoClient
 from .log_stream import install_log_stream_handler
 
@@ -216,6 +214,7 @@ def select_reviewer(owner_group: str, group_config, dedup_key: str) -> tuple[dic
 def startup_event():
     init_db()
     init_finding_group_db()
+    alert_enrichment_service.initialize()
     alert_queue.start()
     logger.info(
         "Service started. Reviewer auto-assignment is enabled only for findings marked under review, and alerts are processed through the durable queue."
@@ -283,6 +282,15 @@ def process_alert(raw_payload: dict):
             finding_data["under_review"] = config.finding_defaults.under_review
 
         apply_finding_status_rules(alert, finding_data)
+        enrichment = alert_enrichment_service.enrich_alert(alert)
+        enrichment_tags = [f"cwe_source:{enrichment.cwe_source}"]
+        if not enrichment.cve_ids:
+            enrichment_tags.append("enrichment:no_cve")
+        elif len(enrichment.cve_ids) > 1:
+            enrichment_tags.append("enrichment:multi_cve")
+
+        tags = list(dict.fromkeys(finding_data["tags"] + enrichment_tags))
+        finding_data["tags"] = tags
 
         reviewer = None
         if finding_data.get("under_review") is True:
@@ -290,16 +298,21 @@ def process_alert(raw_payload: dict):
             if reviewer is not None:
                 finding_data["reviewers"] = [reviewer["id"]]
             assignment_error = assignment_error or reviewer_assignment_error
-            tags = build_tags(alert, owner_group, assignment_error)
+            tags = list(dict.fromkeys(build_tags(alert, owner_group, assignment_error) + enrichment_tags))
             finding_data["tags"] = tags
 
-        cwe = extract_cwe(alert)
-        if not cwe:
-            cve_id = extract_cve(alert)
-            if cve_id:
-                cwe = nvd_cwe_lookup.get_cwe_for_cve(cve_id)
-        if cwe:
-            finding_data["cwe"] = cwe
+        if enrichment.cwe is not None:
+            finding_data["cwe"] = enrichment.cwe
+        if enrichment.epss_score is not None:
+            finding_data["epss_score"] = enrichment.epss_score
+        if enrichment.epss_percentile is not None:
+            finding_data["epss_percentile"] = enrichment.epss_percentile
+        if enrichment.known_exploited is not None:
+            finding_data["known_exploited"] = enrichment.known_exploited
+        if enrichment.ransomware_used is not None:
+            finding_data["ransomware_used"] = enrichment.ransomware_used
+        if enrichment.kev_date:
+            finding_data["kev_date"] = enrichment.kev_date
 
         finding_group_match = evaluate_finding_group_rule(alert, finding_data, config.finding_group_rules)
         if finding_group_match:
@@ -347,6 +360,7 @@ def process_alert(raw_payload: dict):
             assign_note,
             existing_finding=existing_finding,
             endpoint_id=endpoint_id,
+            finding_metadata=enrichment.metadata,
         )
         if finding_group_match:
             try:

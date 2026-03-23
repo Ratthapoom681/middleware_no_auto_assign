@@ -1,7 +1,37 @@
 import hashlib
 import json
+import re
 from .matching import build_alert_match_tokens, rule_matches
 from .models import WazuhAlert
+
+CVE_PATTERN = re.compile(r"\bCVE-\d{4}-\d{4,7}\b", re.IGNORECASE)
+
+RULE_GROUP_CWE_MAP: list[tuple[list[str], int]] = [
+    (["authentication_failed", "brute_force"], 307),
+    (["authentication_success", "vpn_anomaly"], 287),
+    (["web_attack"], 20),
+    (["sql_injection"], 89),
+    (["xss"], 79),
+    (["path_traversal"], 22),
+    (["firewall_drop"], 284),
+    (["malware", "ransomware", "rootkit"], 506),
+    (["recon"], 200),
+    (["email_phishing"], 601),
+    (["spam"], 0),
+]
+
+TITLE_KEYWORD_CWE_MAP: list[tuple[str, int]] = [
+    ("buffer overflow", 119),
+    ("null pointer", 476),
+    ("privilege escal", 269),
+    ("command inject", 77),
+    ("ldap inject", 90),
+    ("xxe", 611),
+    ("ssrf", 918),
+    ("deserializ", 502),
+    ("weak cipher", 326),
+    ("cleartext", 319),
+]
 
 def get_rule_description(alert: WazuhAlert) -> str:
     if alert.rule.description:
@@ -14,36 +44,79 @@ def get_rule_description(alert: WazuhAlert) -> str:
 
 
 def extract_cve(alert: WazuhAlert) -> str | None:
-    candidates = []
+    cves = extract_cves(alert)
+    return cves[0] if cves else None
+
+
+def extract_cves(alert: WazuhAlert) -> list[str]:
+    candidates: list[str] = []
+    seen: set[str] = set()
+    normalized_candidates: list[str] = []
 
     if alert.data:
-        candidates.extend([
-            alert.data.get("cve"),
-            alert.data.get("cve_id"),
-        ])
+        candidates.extend(
+            _extract_candidate_strings(
+                [
+                    alert.data.get("cve"),
+                    alert.data.get("cve_id"),
+                    alert.data.get("cves"),
+                ]
+            )
+        )
 
         vulnerability = alert.data.get("vulnerability")
         if isinstance(vulnerability, dict):
-            candidates.extend([
-                vulnerability.get("cve"),
-                vulnerability.get("cve_id"),
-            ])
+            candidates.extend(
+                _extract_candidate_strings(
+                    [
+                        vulnerability.get("cve"),
+                        vulnerability.get("cve_id"),
+                        vulnerability.get("cves"),
+                    ]
+                )
+            )
 
     raw_vulnerability = alert.raw_payload.get("vulnerability") if isinstance(alert.raw_payload, dict) else None
     if isinstance(raw_vulnerability, dict):
-        candidates.extend([
-            raw_vulnerability.get("cve"),
-            raw_vulnerability.get("cve_id"),
-        ])
+        candidates.extend(
+            _extract_candidate_strings(
+                [
+                    raw_vulnerability.get("cve"),
+                    raw_vulnerability.get("cve_id"),
+                    raw_vulnerability.get("cves"),
+                ]
+            )
+        )
+
+    raw_payload_text = json.dumps(alert.raw_payload, default=str)
+    candidates.extend(CVE_PATTERN.findall(raw_payload_text))
 
     for candidate in candidates:
         if not candidate:
             continue
         normalized = str(candidate).strip().upper()
-        if normalized.startswith("CVE-"):
-            return normalized
+        if not normalized.startswith("CVE-"):
+            continue
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        normalized_candidates.append(normalized)
 
-    return None
+    return normalized_candidates
+
+
+def _extract_candidate_strings(values: list[object]) -> list[str]:
+    candidates: list[str] = []
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, list):
+            for item in value:
+                if item is not None:
+                    candidates.append(str(item))
+            continue
+        candidates.append(str(value))
+    return candidates
 
 def map_severity(level: int) -> str:
     if level <= 4: return "Low"
@@ -66,7 +139,8 @@ def generate_dedup_key(alert: WazuhAlert) -> str:
             
     return hashlib.md5(base.encode()).hexdigest()
 
-def extract_cwe(alert: WazuhAlert) -> int | None:
+
+def extract_direct_cwe(alert: WazuhAlert) -> int | None:
     candidates = []
 
     if alert.data:
@@ -98,13 +172,30 @@ def extract_cwe(alert: WazuhAlert) -> int | None:
         if digits:
             return int(digits)
 
-    groups = {group.lower() for group in alert.rule.groups}
-    if "vulnerability" in groups or "vuln" in groups or "syscollector" in groups:
-        return 1104
-    if "authentication_failed" in groups or "invalid_login" in groups or "sshd" in groups or "pam" in groups:
-        return 307
-
     return None
+
+
+def map_internal_cwe(alert: WazuhAlert) -> tuple[int, str]:
+    rule_description = get_rule_description(alert).lower()
+
+    for keyword, cwe in TITLE_KEYWORD_CWE_MAP:
+        if keyword in rule_description:
+            return cwe, "title_keyword"
+
+    alert_tokens = build_alert_match_tokens(alert)
+    for patterns, cwe in RULE_GROUP_CWE_MAP:
+        if any(rule_matches(pattern, alert_tokens) for pattern in patterns):
+            return cwe, "rule_group"
+
+    return 0, "fallback"
+
+
+def extract_cwe(alert: WazuhAlert) -> int | None:
+    direct_cwe = extract_direct_cwe(alert)
+    if direct_cwe is not None:
+        return direct_cwe
+    cwe, _ = map_internal_cwe(alert)
+    return cwe
 
 def generate_markdown_description(alert: WazuhAlert) -> str:
     rule_description = get_rule_description(alert)

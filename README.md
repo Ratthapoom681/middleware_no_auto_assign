@@ -31,7 +31,9 @@ Main runtime files:
 - `app/finding_groups.py`
   Rolling-window finding grouping logic based on unique source IP counts
 - `app/wazuh_parser.py`
-  Dedup key generation, severity mapping helpers, markdown description, CVE/CWE extraction
+  Dedup key generation, severity mapping helpers, markdown description, CVE/CWE extraction, internal CWE mapping
+- `app/enrichment.py`
+  Persistent enrichment cache, NVD CWE lookup, FIRST EPSS lookup, CISA KEV catalog refresh, enrichment result assembly
 - `app/admin_ui.py`
   Admin page routes and admin JSON API
 
@@ -274,19 +276,50 @@ Important limitations:
 - if `require_same_dst_ip` is enabled, grouping also requires `dstip`
 - grouping does not replace dedup; they are separate layers
 
-## CVE / CWE Behavior
+## Enrichment Behavior
 
-The middleware:
+The middleware now enriches findings in three layers:
 
-- uses CWE directly from the alert when present
-- otherwise extracts a CVE
-- queries NVD for a related CWE
-- adds the CWE to the finding payload when found
+1. Direct alert values
+   - uses CWE directly from the alert when present
+2. External CVE enrichment
+   - extracts one or more CVEs from the alert payload
+   - queries NVD for CWE
+   - queries FIRST for EPSS score and percentile
+   - checks the local CISA KEV catalog copy for `known_exploited`, `ransomware_used`, and `kev_date`
+3. Internal middleware fallback
+   - if no alert CWE and no NVD CWE are available, maps CWE from title keywords and Wazuh rule groups
+   - falls back to `CWE-0` when still unclassified
 
-Environment variables:
+Priority order for CWE:
 
-- `NVD_API_KEY`
-- `NVD_TIMEOUT_SECONDS`
+- direct alert CWE
+- NVD by CVE
+- internal title keyword mapping
+- internal rule group mapping
+- fallback `CWE-0`
+
+Caching:
+
+- NVD CWE cache in SQLite, default TTL 7 days
+- EPSS cache in SQLite, default TTL 24 hours
+- KEV catalog stored locally in SQLite and refreshed daily
+
+DefectDojo fields populated when available:
+
+- `cwe`
+- `epss_score`
+- `epss_percentile`
+- `known_exploited`
+- `ransomware_used`
+- `kev_date`
+
+The middleware also writes small finding metadata items for enrichment provenance, such as:
+
+- primary CVE
+- CWE source
+- CVE count
+- raw KEV ransomware campaign value
 
 ## Admin UI
 
@@ -394,6 +427,13 @@ Current `.env.example` values:
 - `ASSIGNMENT_DB_PATH`
 - `NVD_API_KEY`
 - `NVD_TIMEOUT_SECONDS`
+- `NVD_CACHE_TTL_SECONDS`
+- `EPSS_API_URL`
+- `EPSS_TIMEOUT_SECONDS`
+- `EPSS_CACHE_TTL_SECONDS`
+- `KEV_FEED_URL`
+- `KEV_TIMEOUT_SECONDS`
+- `KEV_REFRESH_SECONDS`
 - `DEFECTDOJO_TIMEOUT_SECONDS`
 - `ALERT_QUEUE_POLL_SECONDS`
 - `ALERT_QUEUE_MAX_ATTEMPTS`

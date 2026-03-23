@@ -153,6 +153,16 @@ DOJO_TIMEOUT_SECONDS = float(os.getenv("DEFECTDOJO_TIMEOUT_SECONDS", "30"))
 NVD_API_URL = os.getenv("NVD_API_URL", "https://services.nvd.nist.gov/rest/json/cves/2.0").rstrip("/")
 NVD_API_KEY = os.getenv("NVD_API_KEY", "")
 NVD_TIMEOUT_SECONDS = float(os.getenv("NVD_TIMEOUT_SECONDS", "10"))
+NVD_CACHE_TTL_SECONDS = int(os.getenv("NVD_CACHE_TTL_SECONDS", "604800"))
+EPSS_API_URL = os.getenv("EPSS_API_URL", "https://api.first.org/data/v1/epss").rstrip("/")
+EPSS_TIMEOUT_SECONDS = float(os.getenv("EPSS_TIMEOUT_SECONDS", "10"))
+EPSS_CACHE_TTL_SECONDS = int(os.getenv("EPSS_CACHE_TTL_SECONDS", "86400"))
+KEV_FEED_URL = os.getenv(
+    "KEV_FEED_URL",
+    "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+)
+KEV_TIMEOUT_SECONDS = float(os.getenv("KEV_TIMEOUT_SECONDS", "15"))
+KEV_REFRESH_SECONDS = int(os.getenv("KEV_REFRESH_SECONDS", "86400"))
 ALERT_QUEUE_POLL_SECONDS = float(os.getenv("ALERT_QUEUE_POLL_SECONDS", "2"))
 ALERT_QUEUE_MAX_ATTEMPTS = int(os.getenv("ALERT_QUEUE_MAX_ATTEMPTS", "5"))
 ALERT_QUEUE_RETRY_BASE_SECONDS = float(os.getenv("ALERT_QUEUE_RETRY_BASE_SECONDS", "15"))

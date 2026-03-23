@@ -579,12 +579,33 @@ class DefectDojoClient:
             )
         return updated_count
 
+    def add_finding_metadata(self, finding_id: int, metadata: Dict[str, Any]) -> None:
+        for name, value in metadata.items():
+            normalized_name = str(name or "").strip()
+            normalized_value = str(value or "").strip()
+            if not normalized_name or not normalized_value:
+                continue
+            try:
+                self._request(
+                    "POST",
+                    f"findings/{finding_id}/metadata/",
+                    json={"name": normalized_name[:120], "value": normalized_value[:300]},
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to attach metadata '%s' to finding %s: %s",
+                    normalized_name,
+                    finding_id,
+                    exc,
+                )
+
     def push_finding(
         self,
         finding_data: dict,
         assign_note: str,
         existing_finding: Optional[Dict[str, Any]] = None,
         endpoint_id: Optional[int] = None,
+        finding_metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         dedup_key = finding_data["unique_id_from_tool"]
 
@@ -630,6 +651,9 @@ class DefectDojoClient:
 
         if endpoint_id is not None:
             self.attach_endpoint_to_finding(finding_id, endpoint_id)
+
+        if finding_metadata:
+            self.add_finding_metadata(finding_id, finding_metadata)
             
         # Add a note regarding assignment using the finding-scoped endpoint.
         if should_add_note:
