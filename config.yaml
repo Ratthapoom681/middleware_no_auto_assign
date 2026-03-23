@@ -32,13 +32,13 @@ finding_defaults:
 
 dedup_settings:
   enabled: true
-  use_unique_id: true
+  use_unique_id: false
   use_title_test_fallback: true
-  require_same_endpoint: true
-  require_same_cwe: true
+  require_same_endpoint: false
+  require_same_cwe: false
   require_network_match: true
-  network_match_mode: "any"
-  network_match_fields: ["src_ip", "observed_ip", "dst_ip"]
+  network_match_mode: "all"
+  network_match_fields: ["src_ip", "dst_ip"]
   ignore_mitigated: true
   action_on_match: "skip"
 

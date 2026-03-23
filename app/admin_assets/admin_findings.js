@@ -11,6 +11,18 @@ const els = {
 };
 
 const DEDUP_PRESETS = {
+  pair: {
+    enabled: true,
+    use_unique_id: false,
+    use_title_test_fallback: true,
+    require_same_endpoint: false,
+    require_same_cwe: false,
+    require_network_match: true,
+    network_match_mode: "all",
+    network_match_fields: ["src_ip", "dst_ip"],
+    ignore_mitigated: true,
+    action_on_match: "skip",
+  },
   balanced: {
     enabled: true,
     use_unique_id: true,
@@ -107,6 +119,7 @@ function isPresetMatch(settings, preset) {
 }
 
 function getDedupPresetName(settings) {
+  if (isPresetMatch(settings, DEDUP_PRESETS.pair)) return "pair";
   if (isPresetMatch(settings, DEDUP_PRESETS.off)) return "off";
   if (isPresetMatch(settings, DEDUP_PRESETS.loose)) return "loose";
   if (isPresetMatch(settings, DEDUP_PRESETS.strict)) return "strict";
@@ -280,6 +293,7 @@ function renderDedupSettingsEditor() {
       </div>
 
       <div class="preset-bar dedup-preset-bar">
+        <button class="ghost preset-btn ${activePreset === "pair" ? "active" : ""}" type="button" data-dedup-preset="pair">Title + IP Pair</button>
         <button class="ghost preset-btn ${activePreset === "balanced" ? "active" : ""}" type="button" data-dedup-preset="balanced">Balanced</button>
         <button class="ghost preset-btn ${activePreset === "strict" ? "active" : ""}" type="button" data-dedup-preset="strict">Strict</button>
         <button class="ghost preset-btn ${activePreset === "loose" ? "active" : ""}" type="button" data-dedup-preset="loose">Loose</button>
