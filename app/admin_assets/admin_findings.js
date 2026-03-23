@@ -150,6 +150,115 @@ function describeDedupSettings(settings) {
   };
 }
 
+function formatNetworkFieldLabel(field) {
+  const labels = {
+    src_ip: "Source IP",
+    dst_ip: "Destination IP",
+    observed_ip: "Observed IP",
+  };
+  return labels[field] || field;
+}
+
+function buildDedupFlow(settings) {
+  const selectedFields = (settings.network_match_fields || []).map(formatNetworkFieldLabel);
+  const networkSummary = settings.require_network_match
+    ? `${settings.network_match_mode === "all" ? "All" : "Any"} of ${selectedFields.join(", ") || "selected IP fields"}`
+    : "Not required";
+
+  return [
+    {
+      step: "1",
+      title: "Start Match",
+      detail: settings.use_unique_id
+        ? "Check the generated unique dedup key first."
+        : "Skip the unique key and move to fallback matching.",
+      tone: settings.use_unique_id ? "active" : "muted",
+    },
+    {
+      step: "2",
+      title: "Fallback Scope",
+      detail: settings.use_title_test_fallback
+        ? "Then compare findings with the same title in the same DefectDojo test."
+        : "No title/test fallback is used.",
+      tone: settings.use_title_test_fallback ? "active" : "muted",
+    },
+    {
+      step: "3",
+      title: "Extra Guards",
+      detail: settings.use_title_test_fallback
+        ? `Endpoint: ${settings.require_same_endpoint ? "same required" : "not required"} • CWE: ${settings.require_same_cwe ? "same required" : "not required"} • Network: ${networkSummary}.`
+        : "Extra guards are inactive because fallback matching is off.",
+      tone: settings.use_title_test_fallback ? "active" : "muted",
+    },
+    {
+      step: "4",
+      title: "Result",
+      detail: settings.action_on_match === "skip"
+        ? "If a match is found, the middleware skips creating a new finding."
+        : "If a match is found, the middleware still creates a new finding.",
+      tone: settings.action_on_match === "skip" ? "active" : "warning",
+    },
+  ];
+}
+
+function buildDedupScenarios(settings) {
+  const networkFields = new Set(settings.network_match_fields || []);
+  const selectedNames = Array.from(networkFields).map(formatNetworkFieldLabel);
+  const networkLabel = selectedNames.length ? selectedNames.join(" + ") : "selected IP fields";
+  const requireAll = settings.network_match_mode === "all";
+
+  if (!settings.enabled) {
+    return [
+      { label: "Any alert arrives", outcome: "Create new finding", emphasis: "new" },
+      { label: "Same title and same IPs", outcome: "Still create new finding", emphasis: "new" },
+      { label: "Old finding already exists", outcome: "Still create new finding", emphasis: "new" },
+    ];
+  }
+
+  const scenarios = [];
+
+  if (settings.use_unique_id) {
+    scenarios.push({
+      label: "Same unique dedup key repeats",
+      outcome: settings.action_on_match === "skip" ? "Duplicate, skip create" : "Match found, still create",
+      emphasis: settings.action_on_match === "skip" ? "duplicate" : "warning",
+    });
+  }
+
+  if (settings.use_title_test_fallback) {
+    scenarios.push({
+      label: "Same title in same test",
+      outcome: settings.require_same_endpoint || settings.require_same_cwe || settings.require_network_match
+        ? "Check extra guards before treating as duplicate"
+        : (settings.action_on_match === "skip" ? "Duplicate, skip create" : "Match found, still create"),
+      emphasis: "guard",
+    });
+
+    if (settings.require_network_match) {
+      scenarios.push({
+        label: `${networkLabel} ${requireAll ? "all match" : "partly match"}`,
+        outcome: settings.action_on_match === "skip"
+          ? "Counts as duplicate if the title/test fallback also matches"
+          : "Counts as match, but create behavior still follows your action setting",
+        emphasis: "duplicate",
+      });
+      scenarios.push({
+        label: `${networkLabel} do not match`,
+        outcome: "Create new finding",
+        emphasis: "new",
+      });
+    }
+  } else {
+    scenarios.push({
+      label: "Different unique key",
+      outcome: "Create new finding",
+      emphasis: "new",
+    });
+  }
+
+  return scenarios;
+}
+
 function renderDedupSettingsEditor() {
   const settings = getDedupSettings();
   const activePreset = getDedupPresetName(settings);
@@ -157,6 +266,8 @@ function renderDedupSettingsEditor() {
   const fallbackEnabled = settings.enabled && settings.use_title_test_fallback;
   const networkEnabled = fallbackEnabled && settings.require_network_match;
   const selectedNetworkFields = new Set(settings.network_match_fields || []);
+  const flow = buildDedupFlow(settings);
+  const scenarios = buildDedupScenarios(settings);
 
   els.dedupSettingsEditor.innerHTML = `
     <div class="editor-card dedup-shell">
@@ -185,6 +296,41 @@ function renderDedupSettingsEditor() {
           ${description.details.map((detail) => `<p>${escapeAttr(detail)}</p>`).join("")}
         </div>
       </div>
+
+      <section class="dedup-visual-block">
+        <div class="dedup-section-head">
+          <h5>How Matching Works</h5>
+          <p>Read this left to right like the middleware decision path.</p>
+        </div>
+        <div class="dedup-flow-grid">
+          ${flow.map((item) => `
+            <article class="dedup-flow-card dedup-flow-card-${escapeAttr(item.tone)}">
+              <div class="dedup-flow-step">${escapeAttr(item.step)}</div>
+              <div class="dedup-flow-copy">
+                <h6>${escapeAttr(item.title)}</h6>
+                <p>${escapeAttr(item.detail)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+
+      <section class="dedup-visual-block">
+        <div class="dedup-section-head">
+          <h5>Quick Examples</h5>
+          <p>These examples update from the settings below so you can see what the current policy actually means.</p>
+        </div>
+        <div class="dedup-scenario-list">
+          ${scenarios.map((scenario) => `
+            <article class="dedup-scenario dedup-scenario-${escapeAttr(scenario.emphasis)}">
+              <div>
+                <p class="dedup-scenario-label">${escapeAttr(scenario.label)}</p>
+                <p class="dedup-scenario-outcome">${escapeAttr(scenario.outcome)}</p>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      </section>
 
       <div class="dedup-sections">
         <section class="choice-card dedup-section">
@@ -529,7 +675,7 @@ function handleEditorClick(event) {
 }
 
 function handleDedupChange(event) {
-  if (!event.target.closest(".dedup-grid, .preset-bar")) {
+  if (!event.target.closest(".dedup-shell")) {
     return;
   }
   state.config.dedup_settings = collectDedupSettings();

@@ -868,6 +868,115 @@ button:focus-visible {
   line-height: 1.6;
 }
 
+.dedup-visual-block {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(250, 253, 252, 0.96), rgba(239, 247, 244, 0.88));
+}
+
+.dedup-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dedup-flow-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.84);
+}
+
+.dedup-flow-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.dedup-flow-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.dedup-flow-copy h6 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+
+.dedup-flow-copy p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.6;
+}
+
+.dedup-flow-card-muted {
+  opacity: 0.78;
+}
+
+.dedup-flow-card-warning {
+  border-color: rgba(202, 138, 4, 0.22);
+  background: linear-gradient(180deg, rgba(202, 138, 4, 0.08), rgba(255, 255, 255, 0.9));
+}
+
+.dedup-scenario-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dedup-scenario {
+  display: grid;
+  gap: 6px;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.dedup-scenario-label {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dedup-scenario-outcome {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.dedup-scenario-duplicate {
+  border-left-color: var(--brand);
+}
+
+.dedup-scenario-new {
+  border-left-color: rgba(37, 99, 235, 0.58);
+}
+
+.dedup-scenario-guard {
+  border-left-color: rgba(202, 138, 4, 0.58);
+}
+
 .dedup-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1164,6 +1273,8 @@ button:focus-visible {
   .create-fields,
   .wizard-steps,
   .editor-grid,
+  .dedup-flow-grid,
+  .dedup-scenario-list,
   .dedup-grid,
   .test-detail-grid,
   .member-grid {
