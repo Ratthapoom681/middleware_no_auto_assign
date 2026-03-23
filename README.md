@@ -408,6 +408,25 @@ docker compose build --no-cache
 docker compose up -d --force-recreate
 ```
 
+### Quick vulnerability filter test
+
+After the container is up, run this inside the running service container:
+
+```bash
+docker compose exec wazuh-dojo-no-auto-assign python tests/test_vulnerability_filter.py
+```
+
+Fixture files:
+
+- `tests/fixtures/vulnerability_detector_alert.json`
+- `tests/fixtures/non_vulnerability_alert.json`
+
+Expected result:
+
+- the vulnerability detector fixture passes the filter
+- the non-vulnerability fixture is marked for skip
+- the vulnerability fixture exposes the expected CVE list
+
 ### Ports
 
 - app listens on `8000`
