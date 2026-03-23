@@ -40,7 +40,7 @@ function renderLogs(entries) {
   if (!entries.length) {
     els.logList.innerHTML = `
       <div class="log-empty">
-        No matching log activity yet. Errors and DefectDojo send events will appear here.
+        No application errors yet. New error entries will appear here automatically.
       </div>
     `;
     return;

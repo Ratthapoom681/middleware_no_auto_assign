@@ -464,7 +464,7 @@ button:focus-visible {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 18px;
 }
 
@@ -488,6 +488,8 @@ button:focus-visible {
 .dashboard-card:nth-child(2) { animation-delay: 60ms; }
 .dashboard-card:nth-child(3) { animation-delay: 120ms; }
 .dashboard-card:nth-child(4) { animation-delay: 180ms; }
+.dashboard-card:nth-child(5) { animation-delay: 240ms; }
+.dashboard-card:nth-child(6) { animation-delay: 300ms; }
 
 .dashboard-card::after {
   content: "";

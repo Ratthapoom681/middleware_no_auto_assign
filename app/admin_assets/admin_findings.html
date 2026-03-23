@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Finding Behavior</title>
+  <link rel="stylesheet" href="/admin/assets/admin.css" />
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Admin Console</p>
+        <h1>Finding Behavior</h1>
+        <p class="lede">Control dedup, default finding fields, and status rules in one place so the behavior of new findings is easy to reason about.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="ghost" id="reloadBtn">Reload</button>
+        <button class="primary" id="saveBtn">Save Config</button>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <a class="nav-link" href="/admin">Home</a>
+      <a class="nav-link" href="/admin/destination">Destination Path</a>
+      <a class="nav-link" href="/admin/routing">Routing Rules</a>
+      <a class="nav-link" href="/admin/teams">Teams</a>
+      <a class="nav-link active" href="/admin/findings">Finding Behavior</a>
+      <a class="nav-link" href="/admin/create">Create Path</a>
+      <a class="nav-link" href="/admin/users">Users</a>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="section-label">Finding Controls</p>
+          <h2 class="panel-title">Finding Behavior</h2>
+          <p class="panel-lede">Change how duplicates are treated and what fields are applied to new findings without editing YAML by hand.</p>
+        </div>
+      </div>
+      <div class="editor-stack">
+        <div class="editor-group">
+          <div class="editor-head">
+            <div>
+              <h4>Dedup Settings</h4>
+              <p>Control how duplicate findings are matched and whether duplicates are skipped or still created.</p>
+            </div>
+          </div>
+          <div class="editor-list" id="dedupSettingsEditor"></div>
+        </div>
+
+        <div class="editor-group">
+          <div class="editor-head">
+            <div>
+              <h4>Finding Defaults</h4>
+              <p>Set the default behavior for every new finding before any rule-specific overrides are applied.</p>
+            </div>
+          </div>
+          <div class="editor-list" id="findingDefaultsEditor"></div>
+        </div>
+
+        <div class="editor-group">
+          <div class="editor-head">
+            <div>
+              <h4>Finding Status Rules</h4>
+              <p>Override finding fields in real time based on severity and optional Wazuh rule group matches.</p>
+            </div>
+            <button class="ghost" type="button" id="addFindingStatusRuleBtn">Add Status Rule</button>
+          </div>
+          <div class="editor-list" id="findingStatusRulesEditor"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script src="/admin/assets/admin_findings.js"></script>
+</body>
+</html>

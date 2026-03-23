@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Routing and Teams</title>
+  <title>Routing Rules</title>
   <link rel="stylesheet" href="/admin/assets/admin.css" />
 </head>
 <body>
@@ -11,8 +11,8 @@
     <div class="hero">
       <div class="hero-copy">
         <p class="eyebrow">Admin Console</p>
-        <h1>Routing and Teams</h1>
-        <p class="lede">Control ownership, team structure, and alert tagging in one place without digging through YAML first.</p>
+        <h1>Routing Rules</h1>
+        <p class="lede">Map Wazuh alert groups to the right owner and tags without mixing those decisions with team maintenance or finding-state controls.</p>
       </div>
       <div class="hero-actions">
         <button class="ghost" id="reloadBtn">Reload</button>
@@ -23,7 +23,9 @@
     <div class="nav-links">
       <a class="nav-link" href="/admin">Home</a>
       <a class="nav-link" href="/admin/destination">Destination Path</a>
-      <a class="nav-link active" href="/admin/routing">Routing and Teams</a>
+      <a class="nav-link active" href="/admin/routing">Routing Rules</a>
+      <a class="nav-link" href="/admin/teams">Teams</a>
+      <a class="nav-link" href="/admin/findings">Finding Behavior</a>
       <a class="nav-link" href="/admin/create">Create Path</a>
       <a class="nav-link" href="/admin/users">Users</a>
     </div>
@@ -33,25 +35,24 @@
     <section class="panel">
       <div class="panel-head">
         <div>
-          <p class="section-label">Ownership Controls</p>
-          <h2 class="panel-title">Routing and Teams</h2>
-          <p class="panel-lede">Define default ownership, team labels, and the matching rules that steer findings into the right lane.</p>
+          <p class="section-label">Routing Controls</p>
+          <h2 class="panel-title">Routing Rules</h2>
+          <p class="panel-lede">Choose the default owner and define the matching logic that sends alerts to the right team and tag set.</p>
         </div>
       </div>
       <div class="editor-stack">
         <div class="editor-group">
           <div class="editor-head">
             <div>
-              <h4>Teams</h4>
-              <p>Set the team name and keep any optional user references grouped with that team.</p>
+              <h4>Fallback Ownership</h4>
+              <p>Pick the team used when no routing rule matches an alert.</p>
             </div>
-            <button class="ghost" type="button" id="addTeamBtn">Add Team</button>
           </div>
           <div class="field">
             <label for="defaultOwnerGroup">Default Owner Group</label>
             <select id="defaultOwnerGroup"></select>
           </div>
-          <div class="editor-list" id="teamsEditor"></div>
+          <p class="helper">Manage available teams on the dedicated Teams page so this screen stays focused on routing logic.</p>
         </div>
 
         <div class="editor-group">
@@ -74,37 +75,6 @@
             <button class="ghost" type="button" id="addTagRuleBtn">Add Tag Rule</button>
           </div>
           <div class="editor-list" id="tagRulesEditor"></div>
-        </div>
-
-        <div class="editor-group">
-          <div class="editor-head">
-            <div>
-              <h4>Dedup Settings</h4>
-              <p>Control how duplicate findings are matched and whether duplicates are skipped or still created.</p>
-            </div>
-          </div>
-          <div class="editor-list" id="dedupSettingsEditor"></div>
-        </div>
-
-        <div class="editor-group">
-          <div class="editor-head">
-            <div>
-              <h4>Finding Defaults</h4>
-              <p>Set the default behavior for every new finding before any rule-specific overrides are applied.</p>
-            </div>
-          </div>
-          <div class="editor-list" id="findingDefaultsEditor"></div>
-        </div>
-
-        <div class="editor-group">
-          <div class="editor-head">
-            <div>
-              <h4>Finding Status Rules</h4>
-              <p>Override finding fields in real time based on severity and optional Wazuh rule group matches.</p>
-            </div>
-            <button class="ghost" type="button" id="addFindingStatusRuleBtn">Add Status Rule</button>
-          </div>
-          <div class="editor-list" id="findingStatusRulesEditor"></div>
         </div>
       </div>
     </section>

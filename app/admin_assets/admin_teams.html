@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Teams</title>
+  <link rel="stylesheet" href="/admin/assets/admin.css" />
+</head>
+<body>
+  <div class="shell">
+    <div class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Admin Console</p>
+        <h1>Teams</h1>
+        <p class="lede">Keep team definitions, fallback users, and membership references in one place so routing stays clean and easy to follow.</p>
+      </div>
+      <div class="hero-actions">
+        <button class="ghost" id="reloadBtn">Reload</button>
+        <button class="primary" id="saveBtn">Save Config</button>
+      </div>
+    </div>
+
+    <div class="nav-links">
+      <a class="nav-link" href="/admin">Home</a>
+      <a class="nav-link" href="/admin/destination">Destination Path</a>
+      <a class="nav-link" href="/admin/routing">Routing Rules</a>
+      <a class="nav-link active" href="/admin/teams">Teams</a>
+      <a class="nav-link" href="/admin/findings">Finding Behavior</a>
+      <a class="nav-link" href="/admin/create">Create Path</a>
+      <a class="nav-link" href="/admin/users">Users</a>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="section-label">Ownership Directory</p>
+          <h2 class="panel-title">Team Setup</h2>
+          <p class="panel-lede">Define the teams your routing rules can target and keep optional user references grouped with each team.</p>
+        </div>
+        <button class="ghost" type="button" id="addTeamBtn">Add Team</button>
+      </div>
+      <div class="editor-list" id="teamsEditor"></div>
+    </section>
+  </div>
+  <script src="/admin/assets/admin_teams.js"></script>
+</body>
+</html>

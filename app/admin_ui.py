@@ -13,6 +13,8 @@ ADMIN_ASSETS_PATH = Path(__file__).with_name("admin_assets")
 ADMIN_HTML_PATH = ADMIN_ASSETS_PATH / "admin.html"
 ADMIN_DESTINATION_HTML_PATH = ADMIN_ASSETS_PATH / "admin_destination.html"
 ADMIN_ROUTING_HTML_PATH = ADMIN_ASSETS_PATH / "admin_routing.html"
+ADMIN_TEAMS_HTML_PATH = ADMIN_ASSETS_PATH / "admin_teams.html"
+ADMIN_FINDINGS_HTML_PATH = ADMIN_ASSETS_PATH / "admin_findings.html"
 ADMIN_CREATE_HTML_PATH = ADMIN_ASSETS_PATH / "admin_create.html"
 ADMIN_USERS_HTML_PATH = ADMIN_ASSETS_PATH / "admin_users.html"
 
@@ -59,6 +61,16 @@ async def admin_destination_page():
 @router.get("/admin/routing", response_class=HTMLResponse)
 async def admin_routing_page():
     return ADMIN_ROUTING_HTML_PATH.read_text(encoding="utf-8")
+
+
+@router.get("/admin/teams", response_class=HTMLResponse)
+async def admin_teams_page():
+    return ADMIN_TEAMS_HTML_PATH.read_text(encoding="utf-8")
+
+
+@router.get("/admin/findings", response_class=HTMLResponse)
+async def admin_findings_page():
+    return ADMIN_FINDINGS_HTML_PATH.read_text(encoding="utf-8")
 
 
 @router.get("/admin/create", response_class=HTMLResponse)
