@@ -169,39 +169,43 @@ def select_reviewer(owner_group: str, group_config, dedup_key: str) -> tuple[dic
     if group_config is None:
         return None, True
 
-    active_usernames: list[str] = []
+    candidate_usernames: list[str] = []
     for username in group_config.users:
-        if username and dd_client.is_user_active(username):
-            active_usernames.append(username)
+        normalized = (username or "").strip()
+        if normalized and normalized not in candidate_usernames:
+            candidate_usernames.append(normalized)
 
     fallback_user = (group_config.fallback_user or "").strip()
-    if fallback_user and fallback_user not in active_usernames and dd_client.is_user_active(fallback_user):
-        active_usernames.append(fallback_user)
+    if fallback_user and fallback_user not in candidate_usernames:
+        candidate_usernames.append(fallback_user)
 
-    if not active_usernames:
+    if not candidate_usernames:
         logger.warning(
-            "Finding is under review but owner group '%s' has no active DefectDojo users available for reviewer auto-assignment.",
+            "Finding is under review but owner group '%s' has no configured DefectDojo users available for reviewer auto-assignment.",
             owner_group,
         )
         return None, True
 
-    assigned_username = get_assigned_user(dedup_key, active_usernames)
-    if assigned_username is None:
-        assigned_username = get_next_user(owner_group, active_usernames)
+    assigned_username = get_assigned_user(dedup_key, candidate_usernames)
+    candidate_order = list(candidate_usernames)
+    if assigned_username:
+        candidate_order = [assigned_username] + [username for username in candidate_usernames if username != assigned_username]
+    else:
+        next_username = get_next_user(owner_group, candidate_usernames)
+        if next_username:
+            next_index = candidate_usernames.index(next_username)
+            candidate_order = candidate_usernames[next_index:] + candidate_usernames[:next_index]
 
-    if not assigned_username:
-        return None, True
+    for candidate_username in candidate_order:
+        reviewer = dd_client.get_user(candidate_username)
+        if reviewer and reviewer.get("id") and reviewer.get("is_active", False):
+            return reviewer, False
 
-    reviewer = dd_client.get_user(assigned_username)
-    if reviewer is None or not reviewer.get("id"):
-        logger.warning(
-            "Reviewer auto-assignment selected '%s' for owner group '%s' but DefectDojo user lookup failed.",
-            assigned_username,
-            owner_group,
-        )
-        return None, True
-
-    return reviewer, False
+    logger.warning(
+        "Finding is under review but owner group '%s' has no active DefectDojo users available for reviewer auto-assignment.",
+        owner_group,
+    )
+    return None, True
 
 
 @app.on_event("startup")
